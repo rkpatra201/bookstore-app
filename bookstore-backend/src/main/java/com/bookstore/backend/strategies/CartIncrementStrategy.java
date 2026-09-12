@@ -7,6 +7,7 @@ import com.bookstore.backend.mappers.LineItemRequestMapper;
 import com.bookstore.backend.repositories.CartRepository;
 import com.bookstore.backend.services.BookService;
 import org.springframework.stereotype.Component;
+
 import java.util.List;
 
 @Component
@@ -31,7 +32,7 @@ public class CartIncrementStrategy implements CartUpdateStrategy {
         // 1. Validate stock availability
         Book book = bookService.getBookById(request.getItemId());
         List<CartLineItemEntity> existingItems = cartRepository.findByUserId(userId);
-        
+
         int currentQtyInCart = existingItems.stream()
                 .filter(item -> item.getItemId() == request.getItemId())
                 .mapToInt(CartLineItemEntity::getQuantity)

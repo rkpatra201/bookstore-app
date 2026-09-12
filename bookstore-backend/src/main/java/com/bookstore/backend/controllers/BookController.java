@@ -1,7 +1,7 @@
 package com.bookstore.backend.controllers;
 
 import com.bookstore.backend.dtos.Book;
-import com.bookstore.backend.dtos.DataResponse; // Custom wrapper for standardized responses
+import com.bookstore.backend.dtos.DataResponse;
 import com.bookstore.backend.services.BookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

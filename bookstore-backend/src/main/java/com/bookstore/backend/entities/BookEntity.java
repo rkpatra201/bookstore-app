@@ -1,6 +1,5 @@
 package com.bookstore.backend.entities;
 
-import com.bookstore.backend.dtos.Author;
 import lombok.Data;
 
 import java.util.List;

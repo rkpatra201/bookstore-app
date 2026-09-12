@@ -15,10 +15,9 @@ import java.util.List;
 @Service
 public class CartService {
 
-    private BookService bookService;
     private final CartRepository cartRepository;
     private final List<CartUpdateStrategy> cartUpdateStrategies;
-
+    private BookService bookService;
     private LineItemRequestMapper lineItemRequestMapper = LineItemRequestMapper.INSTANCE;
 
     // Direct constructor injection
@@ -102,14 +101,14 @@ public class CartService {
 
         CartUpdateStrategy strategy = null;
         // Locate the matching strategy layout at runtime dynamically
-        for(CartUpdateStrategy cartUpdateStrategy : cartUpdateStrategies){
-            if(cartUpdateStrategy.isCartUpdateAllowed(delta)){
+        for (CartUpdateStrategy cartUpdateStrategy : cartUpdateStrategies) {
+            if (cartUpdateStrategy.isCartUpdateAllowed(delta)) {
                 strategy = cartUpdateStrategy;
                 break;
             }
         }
 
-        if(strategy == null){
+        if (strategy == null) {
             throw new IllegalArgumentException("Unsupported quantity change operation");
         }
 

@@ -1,8 +1,8 @@
 package com.bookstore.backend.services;
 
-import com.bookstore.backend.dtos.CustomerAddress;
 import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.CheckoutRequest;
+import com.bookstore.backend.dtos.CustomerAddress;
 import com.bookstore.backend.dtos.OrderResponse;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
@@ -31,7 +31,7 @@ public class OrderService {
      */
     @Transactional // Guarantees the order maps fully and the cart clears out as a single unit
     public OrderResponse checkout(String userId, CheckoutRequest request) {
-        
+
         // 1. Fetch the authoritative server-side cart snapshot
         Cart cart = cartService.getCart(userId);
         if (cart.getLineItems() == null || cart.getLineItems().isEmpty()) {
@@ -69,7 +69,7 @@ public class OrderService {
         orderRepository.saveOrderLineItems(orderId, lineItemEntities);
 
         // 6. Clear the shopping cart since the transaction is successfully recorded
-         cartService.clearCart(userId);
+        cartService.clearCart(userId);
 
         // 7. Return the summarized response payload
         return new OrderResponse(orderId, "PENDING", cart.getTotalCartPrice());

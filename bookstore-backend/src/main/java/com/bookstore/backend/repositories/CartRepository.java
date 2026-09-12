@@ -29,7 +29,7 @@ public class CartRepository {
     }
 
     /**
-     * Saves a line item to the cart. 
+     * Saves a line item to the cart.
      * If the user already has this item, it adds the new quantity to the existing quantity.
      */
     public void saveOrUpdate(CartLineItemEntity lineItem) {
@@ -38,13 +38,13 @@ public class CartRepository {
                 VALUES (?, ?, ?)
                 ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
                 """;
-                
+
         // Note: For H2 databases during testing, use this SQL variant instead:
         // ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = cart_line_items.quantity + EXCLUDED.quantity
 
-        jdbcTemplate.update(sql, 
-                lineItem.getUserId(), 
-                lineItem.getItemId(), 
+        jdbcTemplate.update(sql,
+                lineItem.getUserId(),
+                lineItem.getItemId(),
                 lineItem.getQuantity()
         );
     }

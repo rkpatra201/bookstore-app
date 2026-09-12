@@ -28,11 +28,11 @@ public class CartController {
         cartService.addItemToCart(userContextService.getUserContext().getUserId(), request);
 
         DataResponse<Void> response = new DataResponse<>(
-                true, 
-                "Item successfully added to your cart", 
+                true,
+                "Item successfully added to your cart",
                 null
         );
-        
+
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

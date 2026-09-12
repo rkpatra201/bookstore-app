@@ -11,6 +11,7 @@ import java.util.List;
 public interface BookMapper {
 
     BookMapper INSTANCE = Mappers.getMapper(BookMapper.class);
+
     // If field names match exactly, MapStruct maps them automatically
     Book toDto(BookEntity entity);
 

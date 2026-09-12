@@ -11,11 +11,6 @@ import java.util.List;
 public class AddressRepository {
 
     private final JdbcTemplate jdbcTemplate;
-
-    public AddressRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
     // Shared RowMapper reusable across find and list queries
     private final RowMapper<CustomerAddressEntity> addressRowMapper = (rs, rowNum) -> {
         CustomerAddressEntity entity = new CustomerAddressEntity();
@@ -34,6 +29,10 @@ public class AddressRepository {
         entity.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         return entity;
     };
+
+    public AddressRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     /**
      * Inserts a new customer address record.

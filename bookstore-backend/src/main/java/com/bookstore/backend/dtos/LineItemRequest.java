@@ -2,7 +2,6 @@ package com.bookstore.backend.dtos;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
  * Payload to add a book to the cart or modify its current quantity.

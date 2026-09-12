@@ -83,11 +83,11 @@ public class BookRepository {
 
             // 2. Query and attach the associated authors
             String authorSql = """
-                SELECT a.id, a.author_name, a.author_code 
-                FROM author a
-                JOIN book_author ba ON a.id = ba.author_id
-                WHERE ba.book_id = ?
-                """;
+                    SELECT a.id, a.author_name, a.author_code 
+                    FROM author a
+                    JOIN book_author ba ON a.id = ba.author_id
+                    WHERE ba.book_id = ?
+                    """;
 
             List<AuthorEntity> authors = jdbcTemplate.query(authorSql, (rs, rowNum) ->
                     new AuthorEntity(

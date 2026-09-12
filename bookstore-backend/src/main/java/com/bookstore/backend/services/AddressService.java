@@ -41,7 +41,7 @@ public class AddressService {
         CustomerAddressEntity entity = addressMapper.toEntity(customerAddress);
         entity.setId(id);
         entity.setUserId(userId);
-        
+
         boolean updated = addressRepository.updateByIdAndUserId(entity);
         if (!updated) {
             throw new IllegalArgumentException("Failed to update address. Address not found or access denied");
