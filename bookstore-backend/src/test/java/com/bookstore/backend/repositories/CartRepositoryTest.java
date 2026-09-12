@@ -18,6 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @Import(CartRepository.class)
 class CartRepositoryTest {
 
+    private static final String USER_ID = "user-abc-123";
+    private static final int TARGET_ITEM_ID = 501;
+    private static final int OTHER_ITEM_ID = 777;
+
     @Autowired
     private CartRepository cartRepository;
 
@@ -157,7 +161,7 @@ class CartRepositoryTest {
     @Test
     void deleteItem_shouldReturnFalseAndNotDelete_whenItemBelongsToDifferentUser() {
         // Arrange: Seed an item for a completely different user
-        int itemId1=101;
+        int itemId1 = 101;
         CartLineItemEntity otherUserItem = new CartLineItemEntity();
         otherUserItem.setUserId(OTHER_USER_ID);
         otherUserItem.setItemId(itemId1);
@@ -175,4 +179,89 @@ class CartRepositoryTest {
         Assertions.assertEquals(1, otherUserCart.size());
         Assertions.assertEquals(3, otherUserCart.get(0).getQuantity());
     }
+
+    @Test
+    void reduceItemCount_shouldLowerQuantity_whenRemainingIsGreaterThanZero() {
+        // Arrange: Seed a line item with a quantity of 5
+        CartLineItemEntity lineItem = new CartLineItemEntity();
+        lineItem.setUserId(USER_ID);
+        lineItem.setItemId(TARGET_ITEM_ID);
+        lineItem.setQuantity(5);
+        cartRepository.saveOrUpdate(lineItem);
+
+        // Act: Reduce the item count by 2
+        cartRepository.reduceItemCount(USER_ID, TARGET_ITEM_ID, 2);
+
+        // Assert: Verify row remains but quantity drops to 3
+        List<CartLineItemEntity> cart = cartRepository.findByUserId(USER_ID);
+        Assertions.assertEquals(1, cart.size());
+        Assertions.assertEquals(3, cart.get(0).getQuantity());
+    }
+
+    @Test
+    void reduceItemCount_shouldRemoveRowCompletely_whenQuantityDropsToZeroOrBelow() {
+        // Arrange: Seed a line item with a quantity of 3
+        CartLineItemEntity lineItem = new CartLineItemEntity();
+        lineItem.setUserId(USER_ID);
+        lineItem.setItemId(TARGET_ITEM_ID);
+        lineItem.setQuantity(3);
+        cartRepository.saveOrUpdate(lineItem);
+
+        // Act: Reduce by 3 (exact boundary reduction to zero)
+        cartRepository.reduceItemCount(USER_ID, TARGET_ITEM_ID, 3);
+
+        // Assert: The row should be completely purged from the table
+        List<CartLineItemEntity> cart = cartRepository.findByUserId(USER_ID);
+        Assertions.assertTrue(cart.isEmpty());
+    }
+
+    @Test
+    void reduceItemCount_shouldOnlyModifyTargetItem_withoutAffectingOtherItemsInUserCart() {
+        // Arrange: Seed two different items for the same user
+        CartLineItemEntity targetItem = new CartLineItemEntity();
+        targetItem.setUserId(USER_ID);
+        targetItem.setItemId(TARGET_ITEM_ID); // Item 501
+        targetItem.setQuantity(4);
+
+        CartLineItemEntity otherItem = new CartLineItemEntity();
+        otherItem.setUserId(USER_ID);
+        otherItem.setItemId(OTHER_ITEM_ID); // Item 777
+        otherItem.setQuantity(3);
+
+        cartRepository.saveOrUpdate(targetItem);
+        cartRepository.saveOrUpdate(otherItem);
+
+        // Act: Reduce the target item by 2
+        cartRepository.reduceItemCount(USER_ID, TARGET_ITEM_ID, 2);
+
+        // Assert: Fetch current cart and verify isolation bounds
+        List<CartLineItemEntity> currentCart = cartRepository.findByUserId(USER_ID);
+        Assertions.assertEquals(2, currentCart.size());
+
+        // Find and check the reduced target item
+        CartLineItemEntity actualTarget = currentCart.stream()
+                .filter(item -> item.getItemId() == TARGET_ITEM_ID)
+                .findFirst()
+                .orElseThrow();
+        Assertions.assertEquals(2, actualTarget.getQuantity());
+
+        // Find and verify that the other item remains untouched
+        CartLineItemEntity actualOther = currentCart.stream()
+                .filter(item -> item.getItemId() == OTHER_ITEM_ID)
+                .findFirst()
+                .orElseThrow();
+        Assertions.assertEquals(3, actualOther.getQuantity());
+    }
+
+    @Test
+    void reduceItemCount_shouldThrowIllegalArgumentException_whenItemDoesNotExist() {
+        // Act & Assert: Attempting to reduce an item not present in the cart throws validation error
+        IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> cartRepository.reduceItemCount(USER_ID, 999, 1)
+        );
+
+        Assertions.assertEquals("Item not found in your cart", exception.getMessage());
+    }
+
 }

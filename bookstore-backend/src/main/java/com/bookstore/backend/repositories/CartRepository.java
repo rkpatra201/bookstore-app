@@ -65,4 +65,27 @@ public class CartRepository {
             return entity;
         }, userId);
     }
+
+    public void reduceItemCount(String userId, int itemId, int quantityToReduce) {
+        // 1. Update the row by lowering the count directly in the database
+        String updateSql = """
+                UPDATE cart_line_items 
+                SET quantity = quantity - ? 
+                WHERE user_id = ? AND item_id = ?
+                """;
+
+        int rowsAffected = jdbcTemplate.update(updateSql, quantityToReduce, userId, itemId);
+
+        if (rowsAffected == 0) {
+            throw new IllegalArgumentException("Item not found in your cart");
+        }
+
+        // 2. Cleanup: If the quantity dropped to 0 or negative, remove the row completely
+        String deleteSql = """
+                DELETE FROM cart_line_items 
+                WHERE user_id = ? AND item_id = ? AND quantity <= 0
+                """;
+
+        jdbcTemplate.update(deleteSql, userId, itemId);
+    }
 }
