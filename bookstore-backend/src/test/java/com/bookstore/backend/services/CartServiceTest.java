@@ -36,9 +36,7 @@ class CartServiceTest {
     @Test
     void addItemToCart_shouldThrowException_whenQuantityIsZero() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(0);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, 0);
 
         // Act & Assert
         IllegalArgumentException exception = Assertions.assertThrows(
@@ -55,9 +53,7 @@ class CartServiceTest {
     @Test
     void addItemToCart_shouldThrowException_whenQuantityIsNegative() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(-5);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, -5);
 
         // Act & Assert
         IllegalArgumentException exception = Assertions.assertThrows(
@@ -74,9 +70,7 @@ class CartServiceTest {
     @Test
     void addItemToCart_shouldThrowException_whenStockIsInsufficient() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(10);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, 10);
 
         // Using Builder pattern for only required fields
         Book bookMock = Book.builder()
@@ -100,9 +94,7 @@ class CartServiceTest {
     @Test
     void addItemToCart_shouldSaveSuccessfully_whenQuantityAndStockAreValid() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(5);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, 5);
 
         // Using Builder pattern for only required fields
         Book bookMock = Book.builder()
@@ -129,9 +121,7 @@ class CartServiceTest {
     @Test
     void addItemToCart_shouldSaveSuccessfully_whenStockIsAbundant() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(3);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, 3);
 
         // Using Builder pattern for only required fields
         Book bookMock = Book.builder()

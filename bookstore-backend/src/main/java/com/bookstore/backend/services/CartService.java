@@ -7,6 +7,7 @@ import com.bookstore.backend.dtos.LineItemOutput;
 import com.bookstore.backend.entities.CartLineItemEntity;
 import com.bookstore.backend.mappers.LineItemRequestMapper;
 import com.bookstore.backend.repositories.CartRepository;
+import com.bookstore.backend.strategies.CartUpdateStrategy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,13 +17,15 @@ public class CartService {
 
     private BookService bookService;
     private final CartRepository cartRepository;
+    private final List<CartUpdateStrategy> cartUpdateStrategies;
 
     private LineItemRequestMapper lineItemRequestMapper = LineItemRequestMapper.INSTANCE;
 
     // Direct constructor injection
-    public CartService(CartRepository cartRepository, BookService bookService) {
+    public CartService(CartRepository cartRepository, BookService bookService, List<CartUpdateStrategy> cartUpdateStrategies) {
         this.cartRepository = cartRepository;
         this.bookService = bookService;
+        this.cartUpdateStrategies = cartUpdateStrategies;
     }
 
     public Cart getCart(String userId) {
@@ -89,6 +92,34 @@ public class CartService {
             throw new IllegalArgumentException("Item not found in your cart");
         }
     }
+
+    public Cart updateItemQuantity(String userId, LineItemRequest lineItemRequest) {
+        int delta = lineItemRequest.getQuantity();
+
+        if (delta == 0) {
+            throw new IllegalArgumentException("Quantity cannot be zero");
+        }
+
+        CartUpdateStrategy strategy = null;
+        // Locate the matching strategy layout at runtime dynamically
+        for(CartUpdateStrategy cartUpdateStrategy : cartUpdateStrategies){
+            if(cartUpdateStrategy.isCartUpdateAllowed(delta)){
+                strategy = cartUpdateStrategy;
+                break;
+            }
+        }
+
+        if(strategy == null){
+            throw new IllegalArgumentException("Unsupported quantity change operation");
+        }
+
+        // Execute strategy behavior
+        strategy.update(userId, lineItemRequest);
+
+        // Always re-render and return updated cart snapshot
+        return getCart(userId);
+    }
+
 
 
 }

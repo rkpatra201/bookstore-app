@@ -34,9 +34,7 @@ class CartControllerTest {
     @Test
     void addToCart_shouldReturnOkStatusAndValidResponse_whenItemAddedSuccessfully() {
         // Arrange
-        LineItemRequest request = new LineItemRequest();
-        request.setItemId(ITEM_ID);
-        request.setQuantity(QUANTITY);
+        LineItemRequest request = new LineItemRequest(ITEM_ID, QUANTITY);
 
         UserContext mockContext = Mockito.mock(UserContext.class);
         Mockito.when(mockContext.getUserId()).thenReturn(USER_ID);
