@@ -76,3 +76,86 @@ spring.sql.init.data-locations=classpath:data.sql
 
 ---
 
+
+mapstruct processor for lombok
+
+Lombok is an annotation processor designed to generate code inside a single class (like getters, setters, constructors, and builders). It does not have the capability to copy or transform data from an object of class A to an object of class B.
+To copy fields between your Entities and DTOs (even if they have the exact same field names and types but live in different packages), you need an object-mapping framework.
+The industry standard for Spring Boot is MapStruct. It works flawlessly alongside Lombok, and because it generates mapping code at compile-time, it is incredibly fast.
+## How to use MapStruct with Lombok## 1. Add the Dependency
+Add the MapStruct dependency and its annotation processor to your pom.xml. It must be added to the maven-compiler-plugin configuration alongside Lombok:
+
+<dependencies>
+    <!-- MapStruct Core -->
+    <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>1.6.3</version>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.13.0</version>
+            <configuration>
+                <annotationProcessorPaths>
+                    <!-- Lombok Processor -->
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>1.18.48</version>
+                    </path>
+                    <!-- MapStruct Processor (Must come AFTER lombok) -->
+                    <path>
+                        <groupId>org.mapstruct</groupId>
+                        <artifactId>mapstruct-processor</artifactId>
+                        <version>1.6.3</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+
+## 2. Create a Mapper Interface
+Assuming you have com.bookstore.backend.entities.Book and com.bookstore.backend.dtos.Book, you just define a simple interface. MapStruct will automatically write the implementation for you during compilation:
+
+package com.bookstore.backend.mappers;
+import com.bookstore.backend.dtos.BookDTO;
+import com.bookstore.backend.entities.BookEntity;
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
+
+@Mapper(componentModel = "spring") // Makes it a Spring-managed Bean
+public interface BookMapper {
+
+    // If field names match exactly, MapStruct maps them automatically
+    BookDTO toDto(BookEntity entity);
+
+    BookEntity toEntity(BookDTO dto);
+}
+
+## 3. Inject and Use It in Your Service
+You can then inject this mapper directly into your Spring services just like a repository:
+
+@Service
+public class BookService {
+
+    @Autowired
+    private BookRepository bookRepository;
+
+    @Autowired
+    private BookMapper bookMapper;
+
+    public BookDTO getBookById(int id) {
+        BookEntity entity = bookRepository.findById(id).orElseThrow();
+        // Maps entity to DTO cleanly in one line
+        return bookMapper.toDto(entity);
+    }
+}
+
+------------------------------
+

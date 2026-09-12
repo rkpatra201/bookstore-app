@@ -1,0 +1,15 @@
+package com.bookstore.backend.entities;
+
+import com.bookstore.backend.dtos.Author;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+public class BookEntity {
+    private int id;
+    private String title;
+    private List<AuthorEntity> authors;
+    private float price;
+    private int stockQty;
+}
