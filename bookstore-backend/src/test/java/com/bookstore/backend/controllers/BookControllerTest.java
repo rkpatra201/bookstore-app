@@ -19,6 +19,6 @@ class BookControllerTest {
     @Test
     void getBooks() {
         Assertions.assertTrue(bookController.getBooks().getStatusCode().is2xxSuccessful());
-        Assertions.assertTrue(bookController.getBooks().getBody().isEmpty());
+        Assertions.assertTrue(bookController.getBooks().getBody().getData().isEmpty());
     }
 }

@@ -1,0 +1,36 @@
+package com.bookstore.backend.repositories;
+
+import com.bookstore.backend.entities.CartLineItemEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class CartRepository {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    public CartRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /**
+     * Saves a line item to the cart. 
+     * If the user already has this item, it adds the new quantity to the existing quantity.
+     */
+    public void saveOrUpdate(CartLineItemEntity lineItem) {
+        String sql = """
+                INSERT INTO cart_line_items (user_id, item_id, quantity)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
+                """;
+                
+        // Note: For H2 databases during testing, use this SQL variant instead:
+        // ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = cart_line_items.quantity + EXCLUDED.quantity
+
+        jdbcTemplate.update(sql, 
+                lineItem.getUserId(), 
+                lineItem.getItemId(), 
+                lineItem.getQuantity()
+        );
+    }
+}
