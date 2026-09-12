@@ -1,3 +1,4 @@
+set MODE MySQL;
 -- 1. Create the Author table
 DROP TABLE IF EXISTS author;
 
