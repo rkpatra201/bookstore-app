@@ -36,16 +36,16 @@ INSERT INTO book_author (book_id, author_id, author_key) VALUES (4, 4, 0);
 -- Note: 'id' is omitted as it is AUTO_INCREMENT (Generates IDs 1 to 4)
 -- ==========================================
 INSERT INTO images (url, alt_text)
-VALUES ('https://mit.edu', 'Harry Potter and the Sorcerer''s Stone Front Cover'); -- id: 1
+VALUES ('https://math.mit.edu/~gs/linearalgebra/ila5/linearalgebra5_Front.jpg', 'Harry Potter and the Sorcerer''s Stone Front Cover'); -- id: 1
 
 INSERT INTO images (url, alt_text)
-VALUES ('https://mit.edu', 'A Game of Thrones Front Cover');                     -- id: 2
+VALUES ('https://math.mit.edu/~gs/linearalgebra/ila5/linearalgebra5_Front.jpg', 'A Game of Thrones Front Cover');                     -- id: 2
 
 INSERT INTO images (url, alt_text)
-VALUES ('https://mit.edu', 'The Way of Kings Front Cover');                      -- id: 3
+VALUES ('https://math.mit.edu/~gs/linearalgebra/ila5/linearalgebra5_Front.jpg', 'The Way of Kings Front Cover');                      -- id: 3
 
 INSERT INTO images (url, alt_text)
-VALUES ('https://mit.edu', 'Introduction to Linear Algebra Fifth Edition Front Cover'); -- id: 4
+VALUES ('https://math.mit.edu/~gs/linearalgebra/ila5/linearalgebra5_Front.jpg', 'Introduction to Linear Algebra Fifth Edition Front Cover'); -- id: 4
 
 -- ==========================================
 -- 5. LINK BOOKS TO IMAGES (Junction Table)
