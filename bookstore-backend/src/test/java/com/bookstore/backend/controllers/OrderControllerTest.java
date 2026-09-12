@@ -1,10 +1,6 @@
 package com.bookstore.backend.controllers;
 
-import com.bookstore.backend.dtos.CheckoutRequest;
-import com.bookstore.backend.dtos.DataResponse;
-import com.bookstore.backend.dtos.OrderDetailsResponse;
-import com.bookstore.backend.dtos.OrderResponse;
-import com.bookstore.backend.dtos.UserContext;
+import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.services.OrderService;
 import com.bookstore.backend.services.UserContextService;
 import org.junit.jupiter.api.Assertions;
@@ -19,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
@@ -96,4 +93,60 @@ class OrderControllerTest {
 
         Mockito.verify(orderService, Mockito.times(1)).getOrderById(ORDER_ID, USER_ID);
     }
+
+    @Test
+    void getOrderHistory_shouldReturnOkAndSummaryList_whenSuccessful() {
+        // Arrange: 1. Setup mock order summaries
+        OrderSummaryResponse summary1 = OrderSummaryResponse.builder()
+                .id(101L)
+                .shippingAddressSnapshot("Address 1")
+                .totalAmount(45.00)
+                .orderStatus("DELIVERED")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        OrderSummaryResponse summary2 = OrderSummaryResponse.builder()
+                .id(102L)
+                .shippingAddressSnapshot("Address 2")
+                .totalAmount(95.00)
+                .orderStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        List<OrderSummaryResponse> mockHistory = List.of(summary2, summary1);
+
+        // Arrange: 2. Mock UserContext resolution step-by-step
+        UserContext mockContext = Mockito.mock(UserContext.class);
+        Mockito.when(mockContext.getUserId()).thenReturn(USER_ID);
+        Mockito.when(userContextService.getUserContext()).thenReturn(mockContext);
+
+        // Arrange: 3. Mock service history lookup output return configuration
+        Mockito.when(orderService.getOrderHistory(USER_ID)).thenReturn(mockHistory);
+
+        // Act: 4. Execute the endpoint function call
+        ResponseEntity<DataResponse<List<OrderSummaryResponse>>> responseEntity = orderController.getOrderHistory();
+
+        // Assert: 5. Verify HTTP status code and structural data formats
+        Assertions.assertNotNull(responseEntity);
+        Assertions.assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+
+        DataResponse<List<OrderSummaryResponse>> envelope = responseEntity.getBody();
+        Assertions.assertNotNull(envelope);
+        Assertions.assertTrue(envelope.isSuccess());
+        Assertions.assertEquals("Order history retrieved successfully", envelope.getMessage());
+
+        // Validate collection mapping integrity parameters
+        List<OrderSummaryResponse> dataList = envelope.getData();
+        Assertions.assertNotNull(dataList);
+        Assertions.assertEquals(2, dataList.size());
+        Assertions.assertEquals(102L, dataList.get(0).getId());
+        Assertions.assertEquals(95.00, dataList.get(0).getTotalAmount());
+        Assertions.assertEquals(101L, dataList.get(1).getId());
+        Assertions.assertEquals(45.00, dataList.get(1).getTotalAmount());
+
+        // Verify layer communication integration borders
+        Mockito.verify(userContextService, Mockito.times(1)).getUserContext();
+        Mockito.verify(orderService, Mockito.times(1)).getOrderHistory(USER_ID);
+    }
+
 }

@@ -56,6 +56,7 @@ CREATE TABLE cart_line_items (
 CREATE INDEX idx_cart_user ON cart_line_items(user_id);
 
 DROP TABLE IF EXISTS customer_addresses;
+
 CREATE TABLE customer_addresses (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id VARCHAR(50) NOT NULL,
@@ -73,3 +74,33 @@ CREATE TABLE customer_addresses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_addresses_user_id ON customer_addresses(user_id);
+
+
+---
+
+-- 1. Master Orders Table (With Frozen Address Snapshot)
+CREATE TABLE IF NOT EXISTS orders (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    shipping_address_snapshot TEXT NOT NULL, -- Frozen copy of address (e.g., JSON or formatted string)
+    total_amount DOUBLE NOT NULL,
+    order_status VARCHAR(30) NOT NULL DEFAULT 'PENDING', -- PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 2. Order Line Items Table (Historical Snapshot)
+CREATE TABLE IF NOT EXISTS order_line_items (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    item_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    unit_price DOUBLE NOT NULL,
+    quantity INT NOT NULL,
+    sub_total DOUBLE NOT NULL,
+    CONSTRAINT fk_line_item_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- Optimization Indexes
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_order_line_items_order_id ON order_line_items(order_id);

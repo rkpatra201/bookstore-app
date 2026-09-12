@@ -1,13 +1,12 @@
 package com.bookstore.backend.controllers;
 
-import com.bookstore.backend.dtos.CheckoutRequest;
-import com.bookstore.backend.dtos.DataResponse;
-import com.bookstore.backend.dtos.OrderDetailsResponse;
-import com.bookstore.backend.dtos.OrderResponse;
+import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.services.OrderService;
 import com.bookstore.backend.services.UserContextService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -53,4 +52,27 @@ public class OrderController {
         );
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Retrieves the complete order history list for the logged-in user.
+     * Returns a summary payload that omits nested detail line items for speed.
+     */
+    @GetMapping
+    public ResponseEntity<DataResponse<List<OrderSummaryResponse>>> getOrderHistory() {
+        // 1. Resolve user context identity safely from the session provider
+        String userId = userContextService.getUserContext().getUserId();
+
+        // 2. Fetch the summary history array from the business layer
+        List<OrderSummaryResponse> history = orderService.getOrderHistory(userId);
+
+        // 3. Encapsulate and return within our uniform data wrapper envelope
+        DataResponse<List<OrderSummaryResponse>> response = new DataResponse<>(
+                true,
+                "Order history retrieved successfully",
+                history
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 }
