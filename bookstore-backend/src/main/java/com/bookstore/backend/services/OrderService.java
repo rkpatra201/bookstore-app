@@ -1,11 +1,10 @@
 package com.bookstore.backend.services;
 
-import com.bookstore.backend.dtos.Cart;
-import com.bookstore.backend.dtos.CheckoutRequest;
-import com.bookstore.backend.dtos.CustomerAddress;
-import com.bookstore.backend.dtos.OrderResponse;
+import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.exceptions.ItemNotFoundException;
+import com.bookstore.backend.mappers.OrderMapper;
 import com.bookstore.backend.repositories.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,17 +53,9 @@ public class OrderService {
 
         Long orderId = orderRepository.saveMasterOrder(masterOrder);
 
-        // 5. Convert cart line responses into historical snapshot entities and bulk insert
-        List<OrderLineItemEntity> lineItemEntities = cart.getLineItems().stream()
-                .map(cartItem -> OrderLineItemEntity.builder()
-                        .orderId(orderId)
-                        .itemId(cartItem.getItemId())
-                        .title(cartItem.getTitle())
-                        .unitPrice(cartItem.getUnitPrice())
-                        .quantity(cartItem.getQuantity())
-                        .subTotal(cartItem.getSubTotal())
-                        .build())
-                .toList();
+        // 5. Mapping of lineItems to lineItemEntities
+        List<OrderLineItemEntity> lineItemEntities = OrderMapper.INSTANCE
+                .toLineItemEntityList(cart.getLineItems(), orderId);
 
         orderRepository.saveOrderLineItems(orderId, lineItemEntities);
 
@@ -91,4 +82,22 @@ public class OrderService {
         sb.append(address.getCountry());
         return sb.toString();
     }
+
+    /**
+     * Retrieves an order by its ID ensuring strict ownership context alignment.
+     * Maps the database entities into a specialized response DTO hierarchy.
+     */
+    public OrderDetailsResponse getOrderById(Long orderId, String userId) {
+        // 1. Retrieve the authoritative master-detail model from the repository
+        OrderEntity orderEntity = orderRepository.findOrderById(orderId);
+
+        // 2. Security validation: Fail if the order doesn't exist or belongs to someone else
+        if (orderEntity == null || !orderEntity.getUserId().equals(userId)) {
+            throw new ItemNotFoundException("Order not found or access denied");
+        }
+
+        // 3. Use the plain Java MapStruct mapper instance to clean up the builder loops
+        return OrderMapper.INSTANCE.toDetailsResponse(orderEntity);
+    }
+
 }

@@ -3,6 +3,7 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.exceptions.ItemNotFoundException;
 import com.bookstore.backend.repositories.OrderRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -54,7 +56,7 @@ class OrderServiceCheckoutTest {
         );
 
         Assertions.assertEquals("Cannot checkout an empty shopping cart", exception.getMessage());
-        
+
         // Verify code terminates instantly without invoking sub-layers
         Mockito.verifyNoInteractions(addressService);
         Mockito.verifyNoInteractions(orderRepository);
@@ -137,7 +139,7 @@ class OrderServiceCheckoutTest {
         // Assert: 5. Verify character flattening structure generated for the address text snapshot
         ArgumentCaptor<OrderEntity> orderCaptor = ArgumentCaptor.forClass(OrderEntity.class);
         Mockito.verify(orderRepository, Mockito.times(1)).saveMasterOrder(orderCaptor.capture());
-        
+
         String expectedSnapshot = "John Doe, 123 Main St, Apt 4B, Bengaluru, Karnataka - 560016, India";
         Assertions.assertEquals(expectedSnapshot, orderCaptor.getValue().getShippingAddressSnapshot());
         Assertions.assertEquals(130.0, orderCaptor.getValue().getTotalAmount());
@@ -146,14 +148,14 @@ class OrderServiceCheckoutTest {
         // Assert: 6. Capture and verify the detail line item snapshot conversion maps correctly
         ArgumentCaptor<List<OrderLineItemEntity>> linesCaptor = ArgumentCaptor.forClass(List.class);
         Mockito.verify(orderRepository, Mockito.times(1)).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), linesCaptor.capture());
-        
+
         List<OrderLineItemEntity> savedLines = linesCaptor.getValue();
         Assertions.assertEquals(2, savedLines.size());
-        
+
         Assertions.assertEquals(101, savedLines.get(0).getItemId());
         Assertions.assertEquals("Spring Framework In Action", savedLines.get(0).getTitle());
         Assertions.assertEquals(45.0, savedLines.get(0).getUnitPrice());
-        
+
         Assertions.assertEquals(102, savedLines.get(1).getItemId());
         Assertions.assertEquals("Clean Code Mastery", savedLines.get(1).getTitle());
         Assertions.assertEquals(40.0, savedLines.get(1).getUnitPrice());
@@ -161,4 +163,82 @@ class OrderServiceCheckoutTest {
         // Assert: 7. Verify final workflow termination step executes properly
         Mockito.verify(cartService, Mockito.times(1)).clearCart(USER_ID);
     }
+
+    private static final String ATTACKER_USER_ID = "hacker-user-999";
+    private static final Long ORDER_ID = 888L;
+
+    @Test
+    void getOrderById_shouldReturnDetailsResponseViaMapStruct_whenOrderExistsAndBelongsToUser() {
+        // Arrange: 1. Setup a mock master-detail entity database snapshot
+        OrderLineItemEntity lineItem = OrderLineItemEntity.builder()
+                .id(1L)
+                .itemId(501)
+                .title("Architectural Blueprints")
+                .unitPrice(60.0)
+                .quantity(1)
+                .subTotal(60.0)
+                .build();
+
+        OrderEntity mockOrder = OrderEntity.builder()
+                .id(ORDER_ID)
+                .userId(USER_ID)
+                .shippingAddressSnapshot("John Doe, Main St, Bengaluru")
+                .totalAmount(60.0)
+                .orderStatus("SHIPPED")
+                .createdAt(LocalDateTime.now())
+                .lineItems(List.of(lineItem))
+                .build();
+
+        Mockito.when(orderRepository.findOrderById(ORDER_ID)).thenReturn(mockOrder);
+
+        // Act: 2. Invoke our clean service lookup method
+        OrderDetailsResponse response = orderService.getOrderById(ORDER_ID, USER_ID);
+
+        // Assert: 3. Verify MapStruct converted fields cleanly matching properties
+        Assertions.assertNotNull(response);
+        Assertions.assertEquals(ORDER_ID, response.getId());
+        Assertions.assertEquals("SHIPPED", response.getOrderStatus());
+        Assertions.assertEquals("John Doe, Main St, Bengaluru", response.getShippingAddressSnapshot());
+
+        // Assert nested children lists map properly through the mapper boundary
+        Assertions.assertNotNull(response.getLineItems());
+        Assertions.assertEquals(1, response.getLineItems().size());
+        Assertions.assertEquals("Architectural Blueprints", response.getLineItems().get(0).getTitle());
+        Assertions.assertEquals(60.0, response.getLineItems().get(0).getUnitPrice());
+    }
+
+    @Test
+    void getOrderById_shouldThrowItemNotFoundException_whenOrderIdDoesNotExist() {
+        // Arrange: Mock the database repository returning null
+        Mockito.when(orderRepository.findOrderById(ORDER_ID)).thenReturn(null);
+
+        // Act & Assert: Check security exception rule boundary
+        ItemNotFoundException exception = Assertions.assertThrows(
+                ItemNotFoundException.class,
+                () -> orderService.getOrderById(ORDER_ID, USER_ID)
+        );
+
+        Assertions.assertEquals("Order not found or access denied", exception.getMessage());
+    }
+
+    @Test
+    void getOrderById_shouldThrowItemNotFoundException_whenUserDoesNotOwnTheOrder() {
+        // Arrange: Mock an order that belongs to the victim, not the attacker
+        OrderEntity victimOrder = OrderEntity.builder()
+                .id(ORDER_ID)
+                .userId(USER_ID) // Rightful owner constraint
+                .build();
+
+        Mockito.when(orderRepository.findOrderById(ORDER_ID)).thenReturn(victimOrder);
+
+        // Act & Assert: Malicious attacker attempts to look up the victim's order details
+        ItemNotFoundException exception = Assertions.assertThrows(
+                ItemNotFoundException.class,
+                () -> orderService.getOrderById(ORDER_ID, ATTACKER_USER_ID)
+        );
+
+        // Multi-tenant privacy security wall holds firmly
+        Assertions.assertEquals("Order not found or access denied", exception.getMessage());
+    }
+
 }
