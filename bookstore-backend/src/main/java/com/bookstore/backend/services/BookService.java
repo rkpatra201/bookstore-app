@@ -1,6 +1,8 @@
 package com.bookstore.backend.services;
 
 import com.bookstore.backend.dtos.Book;
+import com.bookstore.backend.entities.BookEntity;
+import com.bookstore.backend.exceptions.ItemNotFoundException;
 import com.bookstore.backend.mappers.BookMapper;
 import com.bookstore.backend.repositories.BookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +20,13 @@ public class BookService {
 
     private BookMapper bookMapper = BookMapper.INSTANCE;
 
-    public List<Book> getBooks(){
-      return bookMapper.toDtoList(bookRepository.findAllBooksWithAuthors());
+    public List<Book> getBooks() {
+        return bookMapper.toDtoList(bookRepository.findAllBooksWithAuthors());
     }
 
-    public Book getBookById(Long id) {
-        return bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with ID: " + id));
+    public Book getBookById(int id) {
+        BookEntity bookEntity = bookRepository.findById(id)
+                .orElseThrow(() -> new ItemNotFoundException("Book not found with ID: " + id));
+        return bookMapper.toDto(bookEntity);
     }
 }

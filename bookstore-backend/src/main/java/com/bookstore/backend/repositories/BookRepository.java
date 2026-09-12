@@ -5,7 +5,6 @@ import com.bookstore.backend.entities.BookEntity;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
@@ -68,7 +67,7 @@ public class BookRepository {
         });
     }
 
-    public Optional<BookEntity> findById(Long id) {
+    public Optional<BookEntity> findById(int id) {
         // 1. Fetch the base book fields
         String bookSql = "SELECT id, title, price, stock_qty FROM book WHERE id = ?";
 
