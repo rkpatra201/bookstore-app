@@ -25,13 +25,13 @@ public class BookJdbcRepository {
 
     public List<BookEntity> findAllBooksWithAuthors() {
         String sql = """
-            SELECT 
-                b.id AS book_id, b.title, b.price, b.stock_qty,
-                a.id AS author_id, a.author_name, a.author_code
-            FROM book b
-            LEFT JOIN book_author ba ON b.id = ba.book_id
-            LEFT JOIN author a ON ba.author_id = a.id
-            """;
+                SELECT 
+                    b.id AS book_id, b.title, b.price, b.stock_qty,
+                    a.id AS author_id, a.author_name, a.author_code
+                FROM book b
+                LEFT JOIN book_author ba ON b.id = ba.book_id
+                LEFT JOIN author a ON ba.author_id = a.id
+                """;
 
         // ResultSetExtractor collects multiple rows into a structured Map, then we convert values to a List
         return jdbcTemplate.query(sql, new ResultSetExtractor<List<BookEntity>>() {
@@ -42,7 +42,7 @@ public class BookJdbcRepository {
 
                 while (rs.next()) {
                     int bookId = rs.getInt("book_id");
-                    
+
                     // 1. If we haven't seen this book yet, map its core fields and add to map
                     BookEntity book = bookMap.get(bookId);
                     if (book == null) {
@@ -52,22 +52,18 @@ public class BookJdbcRepository {
                         book.setPrice(rs.getFloat("price"));
                         book.setStockQty(rs.getInt("stock_qty"));
                         book.setAuthors(new ArrayList<>()); // Initialize empty author list
-                        
+
                         bookMap.put(bookId, book);
                     }
 
                     // 2. If the row contains an author, map it and attach it to the book
                     int authorId = rs.getInt("author_id");
                     if (authorId > 0) { // Check if author exists (handles LEFT JOIN returning nulls)
-                        AuthorEntity author = new AuthorEntity();
-                        author.setId(authorId);
-                        author.setAuthorName(rs.getString("author_name"));
-                        author.setAuthorCode(rs.getString("author_code"));
-                        
+                        AuthorEntity author = new AuthorEntity(authorId, rs.getString("author_name"), rs.getString("author_code"));
                         book.getAuthors().add(author);
                     }
                 }
-                
+
                 return new ArrayList<>(bookMap.values());
             }
         });
