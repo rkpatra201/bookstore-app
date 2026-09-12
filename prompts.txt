@@ -1,0 +1,78 @@
+provide me h2 database datasource configuration for url, username, password, driver. The mode of h2 should be persistent in local disk rather stored in RAM
+
+# H2 Database Configuration (Persistent Local Disk)
+spring.datasource.url=jdbc:h2:file:./data/mydb
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=password
+
+# Optional: Enables the H2 Web Console at http://localhost:8080/h2-console
+spring.h2.console.enabled=true
+
+
+----
+
+init sql script for package com.bookstore.backend.dtos;import lombok.Data;import java.util.List;@Datapublic class Book { private int id; private String title; private List<Author> authors; private float price; private int stockQty;} package com.bookstore.backend.dtos;import lombok.Data;@Datapublic class Author { private int id; private String authorName; private String authorCode;} Note that autorCode is unique and id are auto-increment in nature. Please design a schema.sql
+
+-- 1. Create the Author table
+CREATE TABLE author (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    author_name VARCHAR(255) NOT NULL,
+    author_code VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- 2. Create the Book table
+CREATE TABLE book (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL, -- DECIMAL is preferred over FLOAT for financial/price data
+    stock_qty INT NOT NULL DEFAULT 0
+);
+
+-- 3. Create the Join Table (Book-Author mapping)
+-- This maps the List<Author> inside your Book entity
+CREATE TABLE book_author (
+    book_id INT NOT NULL,
+    author_id INT NOT NULL,
+    -- If using Spring Data JDBC List, an explicit ordering/key column is required:
+    author_key INT NOT NULL,
+    PRIMARY KEY (book_id, author_key),
+    FOREIGN KEY (book_id) REFERENCES book(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES author(id) ON DELETE CASCADE
+);
+
+---
+
+great now we want to insert some data into it
+
+
+-- 1. Insert Authors
+-- Note: 'id' is omitted because it is AUTO_INCREMENT
+INSERT INTO author (author_name, author_code) VALUES ('J.K. Rowling', 'JKR001');
+INSERT INTO author (author_name, author_code) VALUES ('George R.R. Martin', 'GRM002');
+INSERT INTO author (author_name, author_code) VALUES ('Brandon Sanderson', 'BS003');
+
+-- 2. Insert Books
+INSERT INTO book (title, price, stock_qty) VALUES ('Harry Potter and the Sorcerer''s Stone', 19.99, 120);
+INSERT INTO book (title, price, stock_qty) VALUES ('A Game of Thrones', 24.99, 85);
+INSERT INTO book (title, price, stock_qty) VALUES ('The Way of Kings', 29.99, 50);
+
+-- 3. Link Books to Authors (Join Table)
+-- Book 1 (Harry Potter) -> Author 1 (J.K. Rowling)
+INSERT INTO book_author (book_id, author_id, author_key) VALUES (1, 1, 0);
+
+-- Book 2 (A Game of Thrones) -> Author 2 (G.R.R. Martin)
+INSERT INTO book_author (book_id, author_id, author_key) VALUES (2, 2, 0);
+
+-- Book 3 (The Way of Kings) -> Author 3 (B. Sanderson)
+INSERT INTO book_author (book_id, author_id, author_key) VALUES (3, 3, 0);
+
+
+# Enable SQL initialization for both schema and data
+spring.sql.init.mode=always
+
+# Specify the data file location
+spring.sql.init.data-locations=classpath:data.sql
+
+---
+
