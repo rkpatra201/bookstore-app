@@ -82,4 +82,13 @@ public class CartService {
         }
     }
 
+    public void removeItemFromCart(String userId, int itemId) {
+        boolean deleted = cartRepository.deleteItem(userId, itemId);
+
+        if (!deleted) {
+            throw new IllegalArgumentException("Item not found in your cart");
+        }
+    }
+
+
 }

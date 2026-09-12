@@ -220,4 +220,35 @@ class CartServiceTest {
         Assertions.assertEquals("Testing Guide", res2.getTitle());
         Assertions.assertEquals(40.0, res2.getSubTotal());
     }
+
+    @Test
+    void removeItemFromCart_shouldExecuteSuccessfully_whenItemExistsAndIsDeleted() {
+        // Arrange: Mock the repository to report a successful deletion (returns true)
+        Mockito.when(cartRepository.deleteItem(USER_ID, ITEM_ID)).thenReturn(true);
+
+        // Act & Assert: Verify no exception is thrown during execution
+        Assertions.assertDoesNotThrow(() -> cartService.removeItemFromCart(USER_ID, ITEM_ID));
+
+        // Verify downstream repository method was called exactly once with accurate bounds
+        Mockito.verify(cartRepository, Mockito.times(1)).deleteItem(USER_ID, ITEM_ID);
+    }
+
+    @Test
+    void removeItemFromCart_shouldThrowIllegalArgumentException_whenItemDoesNotExist() {
+        // Arrange: Mock the repository to report deletion failure (returns false)
+        Mockito.when(cartRepository.deleteItem(USER_ID, ITEM_ID)).thenReturn(false);
+
+        // Act & Assert: Verify that the expected exception is thrown
+        IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> cartService.removeItemFromCart(USER_ID, ITEM_ID)
+        );
+
+        // Verify the descriptive message text contract matches exactly
+        Assertions.assertEquals("Item not found in your cart", exception.getMessage());
+
+        // Verify repository method execution occurred
+        Mockito.verify(cartRepository, Mockito.times(1)).deleteItem(USER_ID, ITEM_ID);
+    }
+
 }
