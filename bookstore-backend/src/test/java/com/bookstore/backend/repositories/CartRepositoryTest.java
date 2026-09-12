@@ -87,4 +87,92 @@ class CartRepositoryTest {
         Assertions.assertEquals(502, actualItem2.getItemId());
         Assertions.assertEquals(1, actualItem2.getQuantity());
     }
+
+    @Test
+    void deleteItem_shouldReturnTrueAndRemoveRow_whenItemExistsForUser() {
+        // Arrange: Seed an item in the cart for the user
+        int itemId = 101;
+        CartLineItemEntity lineItem = new CartLineItemEntity();
+        lineItem.setUserId(TARGET_USER_ID);
+        lineItem.setItemId(itemId);
+        lineItem.setQuantity(2);
+        cartRepository.saveOrUpdate(lineItem);
+
+        // Act: Delete the item
+        boolean deleteResult = cartRepository.deleteItem(TARGET_USER_ID, itemId);
+
+        // Assert: Verify it returns true and the database row is completely gone
+        Assertions.assertTrue(deleteResult);
+
+        List<CartLineItemEntity> cartAfterDelete = cartRepository.findByUserId(TARGET_USER_ID);
+        Assertions.assertTrue(cartAfterDelete.isEmpty());
+    }
+
+    @Test
+    void deleteItem_shouldReturnFalse_whenItemDoesNotExist() {
+        // Act: Attempt to delete an item that was never added
+        boolean deleteResult = cartRepository.deleteItem(TARGET_USER_ID, 999);
+
+        // Assert
+        Assertions.assertFalse(deleteResult);
+    }
+
+    @Test
+    void deleteItem_shouldDeleteRequestedItem_withoutAffectingOtherItemsInUserCart() {
+        // Arrange: Seed two different items for the same user
+        int itemId = 101;
+        CartLineItemEntity itemToDelete = new CartLineItemEntity();
+        itemToDelete.setUserId(TARGET_USER_ID);
+        itemToDelete.setItemId(itemId); // Item 501
+        itemToDelete.setQuantity(2);
+
+        int remainingItemId = 777;
+        CartLineItemEntity itemToKeep = new CartLineItemEntity();
+        itemToKeep.setUserId(TARGET_USER_ID);
+        itemToKeep.setItemId(remainingItemId); // Item 777
+        itemToKeep.setQuantity(4);
+
+        cartRepository.saveOrUpdate(itemToDelete);
+        cartRepository.saveOrUpdate(itemToKeep);
+
+        // Act: Delete only the first item (501)
+        boolean deleteResult = cartRepository.deleteItem(TARGET_USER_ID, itemId);
+
+        // Assert: Verify deletion reported success
+        Assertions.assertTrue(deleteResult);
+
+        // Fetch the user's cart to check what remains
+        List<CartLineItemEntity> currentCart = cartRepository.findByUserId(TARGET_USER_ID);
+
+        // Ensure exactly one item remains
+        Assertions.assertEquals(1, currentCart.size());
+
+        // Verify that the remaining item is indeed the one we wanted to keep (777)
+        CartLineItemEntity remainingItem = currentCart.get(0);
+        Assertions.assertEquals(TARGET_USER_ID, remainingItem.getUserId());
+        Assertions.assertEquals(remainingItemId, remainingItem.getItemId());
+        Assertions.assertEquals(4, remainingItem.getQuantity());
+    }
+
+    @Test
+    void deleteItem_shouldReturnFalseAndNotDelete_whenItemBelongsToDifferentUser() {
+        // Arrange: Seed an item for a completely different user
+        int itemId1=101;
+        CartLineItemEntity otherUserItem = new CartLineItemEntity();
+        otherUserItem.setUserId(OTHER_USER_ID);
+        otherUserItem.setItemId(itemId1);
+        otherUserItem.setQuantity(3);
+        cartRepository.saveOrUpdate(otherUserItem);
+
+        // Act: Try to delete that same item ID, but using TARGET_USER_ID's scope
+        boolean deleteResult = cartRepository.deleteItem(TARGET_USER_ID, itemId1);
+
+        // Assert: Ensure it returns false because the record doesn't match both conditions
+        Assertions.assertFalse(deleteResult);
+
+        // Verify the original user's cart item remains untouched
+        List<CartLineItemEntity> otherUserCart = cartRepository.findByUserId(OTHER_USER_ID);
+        Assertions.assertEquals(1, otherUserCart.size());
+        Assertions.assertEquals(3, otherUserCart.get(0).getQuantity());
+    }
 }

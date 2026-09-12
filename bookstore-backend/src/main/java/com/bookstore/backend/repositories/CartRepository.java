@@ -16,6 +16,19 @@ public class CartRepository {
     }
 
     /**
+     * Removes a specific item from a user's cart completely.
+     */
+    public boolean deleteItem(String userId, int itemId) {
+        String sql = """
+                DELETE FROM cart_line_items 
+                WHERE user_id = ? AND item_id = ?
+                """;
+
+        int rowsAffected = jdbcTemplate.update(sql, userId, itemId);
+        return rowsAffected > 0; // Returns true if an item was actually found and deleted
+    }
+
+    /**
      * Saves a line item to the cart. 
      * If the user already has this item, it adds the new quantity to the existing quantity.
      */
