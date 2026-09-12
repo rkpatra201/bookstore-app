@@ -3,7 +3,7 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.Book;
 import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.LineItemRequest;
-import com.bookstore.backend.dtos.LineItemOutput;
+import com.bookstore.backend.dtos.LineItemResponse;
 import com.bookstore.backend.entities.CartLineItemEntity;
 import com.bookstore.backend.mappers.LineItemRequestMapper;
 import com.bookstore.backend.repositories.CartRepository;
@@ -29,16 +29,16 @@ public class CartService {
     }
 
     public Cart getCart(String userId) {
-        List<LineItemOutput> lineItemRespons = getCartItemsByUserId(userId);
+        List<LineItemResponse> lineItemRespons = getCartItemsByUserId(userId);
         return Cart.builder()
                 .userId(userId)
                 .lineItems(lineItemRespons)
                 .totalCartPrice(lineItemRespons.stream()
-                        .mapToDouble(LineItemOutput::getSubTotal)
+                        .mapToDouble(LineItemResponse::getSubTotal)
                         .sum()).build();
     }
 
-    private List<LineItemOutput> getCartItemsByUserId(String userId) {
+    private List<LineItemResponse> getCartItemsByUserId(String userId) {
         // 1. Fetch all raw cart records from the repository
         List<CartLineItemEntity> cartEntities = cartRepository.findByUserId(userId);
 
@@ -52,7 +52,7 @@ public class CartService {
                     int quantity = entity.getQuantity();
                     double subTotal = unitPrice * quantity; // Compute dynamically
 
-                    LineItemOutput response = LineItemOutput.builder()
+                    LineItemResponse response = LineItemResponse.builder()
                             .subTotal(subTotal)
                             .unitPrice(unitPrice)
                             .quantity(quantity)
@@ -120,6 +120,17 @@ public class CartService {
         return getCart(userId);
     }
 
+
+    /**
+     * Wipes out all active line items inside the target customer's shopping cart.
+     */
+    public void clearCart(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("User ID cannot be null or empty");
+        }
+
+        cartRepository.clearCart(userId);
+    }
 
 
 }

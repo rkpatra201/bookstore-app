@@ -9,6 +9,6 @@ import java.util.List;
 @Data
 public class Cart {
     private String userId;
-    private List<LineItemOutput> lineItems;
+    private List<LineItemResponse> lineItems;
     private double totalCartPrice; // Computed sum of all sub-totals
 }

@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class LineItemOutput {
+public class LineItemResponse {
     private Integer itemId;
     private String title;
     private double unitPrice;

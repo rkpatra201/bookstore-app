@@ -88,4 +88,17 @@ public class CartRepository {
 
         jdbcTemplate.update(deleteSql, userId, itemId);
     }
+
+    /**
+     * Completely empties the shopping cart for a specific user ID.
+     */
+    public void clearCart(String userId) {
+        String sql = """
+                DELETE FROM cart_line_items 
+                WHERE user_id = ?
+                """;
+
+        jdbcTemplate.update(sql, userId);
+    }
+
 }

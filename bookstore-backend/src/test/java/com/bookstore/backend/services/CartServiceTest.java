@@ -3,7 +3,7 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.Book;
 import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.LineItemRequest;
-import com.bookstore.backend.dtos.LineItemOutput;
+import com.bookstore.backend.dtos.LineItemResponse;
 import com.bookstore.backend.entities.CartLineItemEntity;
 import com.bookstore.backend.repositories.CartRepository;
 import org.junit.jupiter.api.Assertions;
@@ -202,11 +202,11 @@ class CartServiceTest {
         Assertions.assertEquals(90.0, response.getTotalCartPrice());
 
         // Verify individual line item breakdowns
-        LineItemOutput res1 = response.getLineItems().get(0);
+        LineItemResponse res1 = response.getLineItems().get(0);
         Assertions.assertEquals("Spring Guide", res1.getTitle());
         Assertions.assertEquals(50.0, res1.getSubTotal());
 
-        LineItemOutput res2 = response.getLineItems().get(1);
+        LineItemResponse res2 = response.getLineItems().get(1);
         Assertions.assertEquals("Testing Guide", res2.getTitle());
         Assertions.assertEquals(40.0, res2.getSubTotal());
     }
@@ -239,6 +239,31 @@ class CartServiceTest {
 
         // Verify repository method execution occurred
         Mockito.verify(cartRepository, Mockito.times(1)).deleteItem(USER_ID, ITEM_ID);
+    }
+
+
+    @Test
+    void clearCart_shouldThrowIllegalArgumentException_whenUserIdIsEmpty() {
+        // Act & Assert (Blank context safety validation check)
+        IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> cartService.clearCart("")
+        );
+
+        Assertions.assertEquals("User ID cannot be null or empty", exception.getMessage());
+        Mockito.verifyNoInteractions(cartRepository);
+    }
+
+    @Test
+    void clearCart_shouldInvokeRepositorySuccessfully_whenUserIdIsValid() {
+        // Arrange
+        Mockito.doNothing().when(cartRepository).clearCart(USER_ID);
+
+        // Act & Assert
+        Assertions.assertDoesNotThrow(() -> cartService.clearCart(USER_ID));
+
+        // Verify downstream repository layer communication occurred exactly once
+        Mockito.verify(cartRepository, Mockito.times(1)).clearCart(USER_ID);
     }
 
 }

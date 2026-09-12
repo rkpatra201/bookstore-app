@@ -264,4 +264,44 @@ class CartRepositoryTest {
         Assertions.assertEquals("Item not found in your cart", exception.getMessage());
     }
 
+    @Test
+    void clearCart_shouldWipeAllItemsForTargetUser_withoutAffectingOtherUsers() {
+        // Arrange: 1. Seed two items for the target user who is about to check out
+        CartLineItemEntity targetItem1 = new CartLineItemEntity();
+        targetItem1.setUserId(TARGET_USER_ID);
+        targetItem1.setItemId(101);
+        targetItem1.setQuantity(2);
+
+        CartLineItemEntity targetItem2 = new CartLineItemEntity();
+        targetItem2.setUserId(TARGET_USER_ID);
+        targetItem2.setItemId(102);
+        targetItem2.setQuantity(1);
+
+        // Arrange: 2. Seed an item for a different user to verify multi-tenant safety bounds
+        CartLineItemEntity outsideUserItem = new CartLineItemEntity();
+        outsideUserItem.setUserId(OTHER_USER_ID);
+        outsideUserItem.setItemId(101);
+        outsideUserItem.setQuantity(4);
+
+        // Save records to the in-memory database
+        cartRepository.saveOrUpdate(targetItem1);
+        cartRepository.saveOrUpdate(targetItem2);
+        cartRepository.saveOrUpdate(outsideUserItem);
+
+        // Pre-Verify: Confirm target user has items before clearing
+        Assertions.assertEquals(2, cartRepository.findByUserId(TARGET_USER_ID).size());
+
+        // Act: Perform the full cleanup action
+        cartRepository.clearCart(TARGET_USER_ID);
+
+        // Assert: 3. Verify target user's cart is now perfectly empty
+        List<CartLineItemEntity> clearedCart = cartRepository.findByUserId(TARGET_USER_ID);
+        Assertions.assertTrue(clearedCart.isEmpty());
+
+        // Assert: 4. Critical Isolation Check - Verify the other user's items remain untouched
+        List<CartLineItemEntity> outsideCart = cartRepository.findByUserId(OTHER_USER_ID);
+        Assertions.assertEquals(1, outsideCart.size());
+        Assertions.assertEquals(4, outsideCart.get(0).getQuantity());
+    }
+
 }
