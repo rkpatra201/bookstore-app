@@ -1,12 +1,17 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { CATALOG_URL, HEALTH_URL } from "../../constants/AppConstants";
 
 export function Catalog(){
 
+ const [books,setBooks] = useState([]);
+
  function loadData(){
-    fetch(HEALTH_URL)
+    fetch(CATALOG_URL)
     .then(res=> res.json())
-    .then(data=> console.log(data))
+    .then(json=> {
+        console.log(json);
+        setBooks(json.data);
+    })
  }   
 
  useEffect(()=>{
@@ -15,5 +20,10 @@ export function Catalog(){
 
  return <>
  <h1>Catalog</h1>
+ {books.map(item=>{
+    return <li key={item.id}>
+        {JSON.stringify(item)}
+    </li>
+ })}
  </>
 }
