@@ -241,4 +241,77 @@ class OrderServiceCheckoutTest {
         Assertions.assertEquals("Order not found or access denied", exception.getMessage());
     }
 
+    @Test
+    void getOrderHistory_shouldThrowIllegalArgumentException_whenUserIdIsEmpty() {
+        // Act & Assert: Input contract validation check
+        IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> orderService.getOrderHistory("")
+        );
+
+        Assertions.assertEquals("User ID cannot be null or empty", exception.getMessage());
+        Mockito.verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void getOrderHistory_shouldReturnEmptyList_whenNoOrdersExistForUser() {
+        // Arrange
+        Mockito.when(orderRepository.findAllOrdersByUserId(USER_ID)).thenReturn(Collections.emptyList());
+
+        // Act
+        List<OrderSummaryResponse> result = orderService.getOrderHistory(USER_ID);
+
+        // Assert
+        Assertions.assertNotNull(result);
+        Assertions.assertTrue(result.isEmpty());
+        Mockito.verify(orderRepository, Mockito.times(1)).findAllOrdersByUserId(USER_ID);
+    }
+
+    @Test
+    void getOrderHistory_shouldReturnMappedSummaryListViaMapStruct_whenOrdersExist() {
+        // Arrange: Mock 2 master entities (representing descending order sort sequence)
+        OrderEntity summary1 = OrderEntity.builder()
+                .id(101L)
+                .userId(USER_ID)
+                .shippingAddressSnapshot("Address 1")
+                .totalAmount(75.00)
+                .orderStatus("DELIVERED")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        OrderEntity summary2 = OrderEntity.builder()
+                .id(102L)
+                .userId(USER_ID)
+                .shippingAddressSnapshot("Address 2")
+                .totalAmount(150.00)
+                .orderStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Mockito.when(orderRepository.findAllOrdersByUserId(USER_ID)).thenReturn(List.of(summary2, summary1));
+
+        // Act
+        List<OrderSummaryResponse> history = orderService.getOrderHistory(USER_ID);
+
+        // Assert: Verify conversions cleanly match structural assumptions
+        Assertions.assertNotNull(history);
+        Assertions.assertEquals(2, history.size());
+
+        // Validate first summary item structure mapping accuracy
+        OrderSummaryResponse actualFirst = history.get(0);
+        Assertions.assertEquals(102L, actualFirst.getId());
+        Assertions.assertEquals("Address 2", actualFirst.getShippingAddressSnapshot());
+        Assertions.assertEquals(150.00, actualFirst.getTotalAmount());
+        Assertions.assertEquals("PENDING", actualFirst.getOrderStatus());
+
+        // Validate second summary item structure mapping accuracy
+        OrderSummaryResponse actualSecond = history.get(1);
+        Assertions.assertEquals(101L, actualSecond.getId());
+        Assertions.assertEquals("Address 1", actualSecond.getShippingAddressSnapshot());
+        Assertions.assertEquals(75.00, actualSecond.getTotalAmount());
+        Assertions.assertEquals("DELIVERED", actualSecond.getOrderStatus());
+
+        Mockito.verify(orderRepository, Mockito.times(1)).findAllOrdersByUserId(USER_ID);
+    }
+
 }

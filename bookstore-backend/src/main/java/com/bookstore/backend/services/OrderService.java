@@ -100,4 +100,18 @@ public class OrderService {
         return OrderMapper.INSTANCE.toDetailsResponse(orderEntity);
     }
 
+    /**
+     * Retrieves the complete summary history of all orders for a specific user ID.
+     * Excludes heavy nested child line items to optimize profile listing rendering speed.
+     */
+    public List<OrderSummaryResponse> getOrderHistory(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("User ID cannot be null or empty");
+        }
+
+        List<OrderEntity> orderEntities = orderRepository.findAllOrdersByUserId(userId);
+        return OrderMapper.INSTANCE.toSummaryResponseList(orderEntities);
+    }
+
+
 }

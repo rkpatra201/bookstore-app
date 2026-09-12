@@ -3,6 +3,7 @@ package com.bookstore.backend.mappers;
 import com.bookstore.backend.dtos.LineItemResponse;
 import com.bookstore.backend.dtos.OrderDetailsResponse;
 import com.bookstore.backend.dtos.OrderLineItemResponse;
+import com.bookstore.backend.dtos.OrderSummaryResponse;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
 import org.mapstruct.Context;
@@ -33,5 +34,9 @@ public interface OrderMapper {
      */
     List<OrderLineItemEntity> toLineItemEntityList(List<LineItemResponse> cartItems, @Context Long orderId);
 
+
+    OrderSummaryResponse toSummaryResponse(OrderEntity entity);
+
+    List<OrderSummaryResponse> toSummaryResponseList(List<OrderEntity> entities);
 
 }
