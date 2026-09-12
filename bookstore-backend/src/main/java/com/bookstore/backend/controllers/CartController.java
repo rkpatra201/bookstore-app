@@ -1,5 +1,6 @@
 package com.bookstore.backend.controllers;
 
+import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.DataResponse;
 import com.bookstore.backend.dtos.LineItemRequest;
 import com.bookstore.backend.services.CartService;
@@ -52,5 +53,30 @@ public class CartController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{itemId}")
+    public ResponseEntity<DataResponse<Cart>> updateItemQuantity(
+            @PathVariable int itemId,
+            @RequestBody LineItemRequest request) {
+
+        // 1. Enforce that path variable and request body payload IDs align
+        request.setItemId(itemId);
+
+        // 2. Resolve user context identity details
+        String userId = userContextService.getUserContext().getUserId();
+
+        // 3. Delegate quantity update execution to service layer (which routes via Strategy)
+        Cart updatedCart = cartService.updateItemQuantity(userId, request);
+
+        // 4. Encapsulate and return the full cart snapshot for UI re-rendering
+        DataResponse<Cart> response = new DataResponse<>(
+                true,
+                "Cart quantity updated successfully",
+                updatedCart
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 
 }

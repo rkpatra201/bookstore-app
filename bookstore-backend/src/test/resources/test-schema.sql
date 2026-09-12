@@ -54,3 +54,23 @@ CREATE TABLE cart_line_items (
 -- PERFORMANCE INDEX
 -- Speeds up database lookup speeds when retrieving or updating a specific user's cart rows
 CREATE INDEX idx_cart_user ON cart_line_items(user_id);
+
+DROP TABLE IF EXISTS customer_addresses;
+
+CREATE TABLE customer_addresses (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    alias VARCHAR(50), -- Optional alias (e.g., 'Home', 'Work', 'Office')
+    recipient_name VARCHAR(100) NOT NULL,
+    address_line1 VARCHAR(150) NOT NULL,
+    address_line2 VARCHAR(150),
+    city VARCHAR(50) NOT NULL,
+    state VARCHAR(50) NOT NULL,
+    postal_code VARCHAR(20) NOT NULL,
+    country VARCHAR(50) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_addresses_user_id ON customer_addresses(user_id);
