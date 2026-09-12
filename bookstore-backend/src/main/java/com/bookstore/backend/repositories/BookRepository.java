@@ -14,12 +14,12 @@ import java.util.List;
 import java.util.Map;
 
 @Repository
-public class BookJdbcRepository {
+public class BookRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
     // Spring injects JdbcTemplate automatically via constructor
-    public BookJdbcRepository(JdbcTemplate jdbcTemplate) {
+    public BookRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

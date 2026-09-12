@@ -13,15 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @JdbcTest
 @ActiveProfiles("test")
-@Import(BookJdbcRepository.class)
-class BookJdbcRepositoryTest {
+@Import(BookRepository.class)
+class BookRepositoryTest {
 
     @Autowired
-    private BookJdbcRepository bookJdbcRepository;
+    private BookRepository bookRepository;
 
     @Test
     void shouldFindAllBooksWithTheirAuthors() {
-        List<BookEntity> books = bookJdbcRepository.findAllBooksWithAuthors();
+        List<BookEntity> books = bookRepository.findAllBooksWithAuthors();
 
         // Assert: Asserts against the data you inserted in data.sql
         assertThat(books).isNotEmpty();
