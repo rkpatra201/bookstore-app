@@ -99,4 +99,73 @@ class OrderRepositoryTest {
         Assertions.assertEquals(1, actualItem2.get("quantity"));
         Assertions.assertEquals(50.00, ((Number) actualItem2.get("sub_total")).doubleValue());
     }
+
+    @Test
+    void findOrderById_shouldReturnFullOrderDetailsWithLineItems_whenOrderExists() {
+        // Arrange: 1. Persist a master order record
+        OrderEntity newOrder = OrderEntity.builder()
+                .userId("customer-user-111")
+                .shippingAddressSnapshot("John Doe, 123 Main St, Bengaluru")
+                .totalAmount(95.00)
+                .orderStatus("PENDING")
+                .build();
+
+        Long generatedOrderId = orderRepository.saveMasterOrder(newOrder);
+
+        // Arrange: 2. Persist detail child item snapshot records attached to the generated ID
+        OrderLineItemEntity lineItem1 = OrderLineItemEntity.builder()
+                .itemId(101)
+                .title("Spring Boot Action")
+                .unitPrice(45.00)
+                .quantity(1)
+                .subTotal(45.00)
+                .build();
+
+        OrderLineItemEntity lineItem2 = OrderLineItemEntity.builder()
+                .itemId(102)
+                .title("Clean Architecture")
+                .unitPrice(50.00)
+                .quantity(1)
+                .subTotal(50.00)
+                .build();
+
+        orderRepository.saveOrderLineItems(generatedOrderId, List.of(lineItem1, lineItem2));
+
+        // Act: 3. Query the database using our new deep lookup operation method
+        OrderEntity retrievedOrder = orderRepository.findOrderById(generatedOrderId);
+
+        // Assert: 4. Check master order root fields properties
+        Assertions.assertNotNull(retrievedOrder);
+        Assertions.assertEquals(generatedOrderId, retrievedOrder.getId());
+        Assertions.assertEquals("customer-user-111", retrievedOrder.getUserId());
+        Assertions.assertEquals("John Doe, 123 Main St, Bengaluru", retrievedOrder.getShippingAddressSnapshot());
+        Assertions.assertEquals(95.00, retrievedOrder.getTotalAmount());
+        Assertions.assertEquals("PENDING", retrievedOrder.getOrderStatus());
+        Assertions.assertNotNull(retrievedOrder.getCreatedAt());
+
+        // Assert: 5. Verify the embedded collections size and content alignment
+        List<OrderLineItemEntity> items = retrievedOrder.getLineItems();
+        Assertions.assertNotNull(items);
+        Assertions.assertEquals(2, items.size());
+
+        // Check line item 1 values
+        Assertions.assertEquals(101, items.get(0).getItemId());
+        Assertions.assertEquals("Spring Boot Action", items.get(0).getTitle());
+        Assertions.assertEquals(45.00, items.get(0).getUnitPrice());
+
+        // Check line item 2 values
+        Assertions.assertEquals(102, items.get(1).getItemId());
+        Assertions.assertEquals("Clean Architecture", items.get(1).getTitle());
+        Assertions.assertEquals(50.00, items.get(1).getUnitPrice());
+    }
+
+    @Test
+    void findOrderById_shouldReturnNull_whenOrderDoesNotExist() {
+        // Act: Querying a completely non-existent order index sequence reference
+        OrderEntity nonExistentOrder = orderRepository.findOrderById(99999L);
+
+        // Assert
+        Assertions.assertNull(nonExistentOrder);
+    }
+
 }

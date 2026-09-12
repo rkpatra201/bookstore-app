@@ -81,4 +81,61 @@ public class OrderRepository {
 
         jdbcTemplate.batchUpdate(sql, batchArgs);
     }
+
+    /**
+     * Finds a single order along with all its nested line items by its ID.
+     * Returns null if no matching order record is found.
+     */
+    public OrderEntity findOrderById(Long orderId) {
+        String orderSql = """
+                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, created_at, updated_at
+                FROM orders 
+                WHERE id = ?
+                """;
+
+        // 1. Fetch the master order row mapping
+        List<OrderEntity> orders = jdbcTemplate.query(orderSql, (rs, rowNum) -> {
+            OrderEntity order = new OrderEntity();
+            order.setId(rs.getLong("id"));
+            order.setUserId(rs.getString("user_id"));
+            order.setShippingAddressSnapshot(rs.getString("shipping_address_snapshot"));
+            order.setTotalAmount(rs.getDouble("total_amount"));
+            order.setOrderStatus(rs.getString("order_status"));
+            order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+            order.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+            return order;
+        }, orderId);
+
+        if (orders.isEmpty()) {
+            return null;
+        }
+
+        OrderEntity masterOrder = orders.get(0);
+
+        // 2. Fetch all matching line items attached to this specific order ID
+        String lineItemsSql = """
+                SELECT id, order_id, item_id, title, unit_price, quantity, sub_total
+                FROM order_line_items 
+                WHERE order_id = ?
+                ORDER BY id ASC
+                """;
+
+        List<OrderLineItemEntity> items = jdbcTemplate.query(lineItemsSql, (rs, rowNum) -> {
+            OrderLineItemEntity item = new OrderLineItemEntity();
+            item.setId(rs.getLong("id"));
+            item.setOrderId(rs.getLong("order_id"));
+            item.setItemId(rs.getInt("item_id"));
+            item.setTitle(rs.getString("title"));
+            item.setUnitPrice(rs.getDouble("unit_price"));
+            item.setQuantity(rs.getInt("quantity"));
+            item.setSubTotal(rs.getDouble("sub_total"));
+            return item;
+        }, orderId);
+
+        // 3. Embed the child details collection into the master entity object safely
+        masterOrder.setLineItems(items);
+
+        return masterOrder;
+    }
+
 }
