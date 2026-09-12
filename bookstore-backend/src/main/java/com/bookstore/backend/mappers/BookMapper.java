@@ -1,7 +1,9 @@
 package com.bookstore.backend.mappers;
 
 import com.bookstore.backend.dtos.Book;
+import com.bookstore.backend.dtos.Image;
 import com.bookstore.backend.entities.BookEntity;
+import com.bookstore.backend.entities.ImageEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
@@ -18,4 +20,6 @@ public interface BookMapper {
     List<Book> toDtoList(List<BookEntity> entity);
 
     BookEntity toEntity(Book dto);
+
+    Image toImageDto(ImageEntity entity);
 }

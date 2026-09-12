@@ -13,6 +13,7 @@ public class Book {
     private int id;
     private String title;
     private List<Author> authors;
+    private List<Image> images;
     private float price;
     private int stockQty;
 }

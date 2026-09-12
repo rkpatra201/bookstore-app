@@ -78,5 +78,23 @@ public class CartController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping
+    public ResponseEntity<DataResponse<Cart>> getCart() {
+        // 1. Resolve user context identity details securely
+        String userId = userContextService.getUserContext().getUserId();
+
+        // 2. Fetch the fully calculated cart model payload from service layer
+        Cart cartResponse = cartService.getCart(userId);
+
+        // 3. Encapsulate and return the full cart snapshot for UI re-rendering
+        DataResponse<Cart> response = new DataResponse<>(
+                true,
+                "Cart retrieved successfully",
+                cartResponse
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 
 }

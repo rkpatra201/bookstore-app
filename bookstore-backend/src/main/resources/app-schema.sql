@@ -104,3 +104,25 @@ CREATE TABLE IF NOT EXISTS order_line_items (
 -- Optimization Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_line_items_order_id ON order_line_items(order_id);
+
+-- 1. Centralized Image Metadata Table
+CREATE TABLE IF NOT EXISTS images (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    url VARCHAR(512) NOT NULL,               -- Stores the image URL string path safely
+    alt_text VARCHAR(255),                   -- Description for frontend accessibility/SEO
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Book Images Link / Junction Table
+CREATE TABLE IF NOT EXISTS book_images (
+    book_id INT NOT NULL,
+    image_id BIGINT NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,        -- True if this image is the main display front cover
+    PRIMARY KEY (book_id, image_id),
+    CONSTRAINT fk_book_images_book FOREIGN KEY (book_id) REFERENCES book(id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_images_image FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+);
+
+-- Optimization Index
+CREATE INDEX IF NOT EXISTS idx_book_images_book_id ON book_images(book_id);
+
