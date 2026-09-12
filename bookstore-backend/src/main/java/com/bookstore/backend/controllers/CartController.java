@@ -34,4 +34,23 @@ public class CartController {
         
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    @DeleteMapping("/{itemId}")
+    public ResponseEntity<DataResponse<Void>> removeItemFromCart(@PathVariable int itemId) {
+        // 1. Fetch user context identity
+        String userId = userContextService.getUserContext().getUserId();
+
+        // 2. Delegate deletion logic execution to the service layer
+        cartService.removeItemFromCart(userId, itemId);
+
+        // 3. Construct a standard API response wrap
+        DataResponse<Void> response = new DataResponse<>(
+                true,
+                "Item successfully removed from your cart",
+                null
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 }

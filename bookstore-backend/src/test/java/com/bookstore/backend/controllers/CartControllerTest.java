@@ -59,4 +59,32 @@ class CartControllerTest {
         Mockito.verify(userContextService, Mockito.times(1)).getUserContext();
         Mockito.verify(cartService, Mockito.times(1)).addItemToCart(USER_ID, request);
     }
+
+    @Test
+    void removeItemFromCart_shouldReturnOkStatus_whenDeletionIsSuccessful() {
+        // Arrange: Setup mock user context lookup step-by-step
+        UserContext mockContext = Mockito.mock(UserContext.class);
+        Mockito.when(mockContext.getUserId()).thenReturn(USER_ID);
+        Mockito.when(userContextService.getUserContext()).thenReturn(mockContext);
+
+        // Mock the void service method call behavior explicitly to do nothing
+        Mockito.doNothing().when(cartService).removeItemFromCart(USER_ID, ITEM_ID);
+
+        // Act: Directly execute controller endpoint function
+        ResponseEntity<DataResponse<Void>> responseEntity = cartController.removeItemFromCart(ITEM_ID);
+
+        // Assert: Validate responses match structural schemas
+        Assertions.assertNotNull(responseEntity);
+        Assertions.assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+
+        DataResponse<Void> body = responseEntity.getBody();
+        Assertions.assertNotNull(body);
+        Assertions.assertTrue(body.isSuccess());
+        Assertions.assertEquals("Item successfully removed from your cart", body.getMessage());
+        Assertions.assertNull(body.getData());
+
+        // Verify downstream layer communication occurred correctly
+        Mockito.verify(userContextService, Mockito.times(1)).getUserContext();
+        Mockito.verify(cartService, Mockito.times(1)).removeItemFromCart(USER_ID, ITEM_ID);
+    }
 }
