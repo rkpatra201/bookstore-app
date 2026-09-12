@@ -20,6 +20,5 @@ public interface LineItemRequestMapper {
     LineItemRequest toDto(CartLineItemEntity entity);
     @Mapping(target = "userId", source = "userId")
     CartLineItemEntity toEntity(LineItemRequest request, String userId);
-    List<Book> toDtoList(List<BookEntity> entity);
 
 }

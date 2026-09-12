@@ -4,6 +4,8 @@ import com.bookstore.backend.entities.CartLineItemEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public class CartRepository {
 
@@ -32,5 +34,22 @@ public class CartRepository {
                 lineItem.getItemId(), 
                 lineItem.getQuantity()
         );
+    }
+
+    public List<CartLineItemEntity> findByUserId(String userId) {
+        String sql = """
+                SELECT id, user_id, item_id, quantity 
+                FROM cart_line_items 
+                WHERE user_id = ?
+                """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            CartLineItemEntity entity = new CartLineItemEntity();
+            entity.setId(rs.getInt("id"));
+            entity.setUserId(rs.getString("user_id"));
+            entity.setItemId(rs.getInt("item_id"));
+            entity.setQuantity(rs.getInt("quantity"));
+            return entity;
+        }, userId);
     }
 }

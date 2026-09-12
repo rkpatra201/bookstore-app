@@ -1,7 +1,9 @@
 package com.bookstore.backend.services;
 
 import com.bookstore.backend.dtos.Book;
+import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.LineItemRequest;
+import com.bookstore.backend.dtos.LineItemOutput;
 import com.bookstore.backend.entities.CartLineItemEntity;
 import com.bookstore.backend.repositories.CartRepository;
 import org.junit.jupiter.api.Assertions;
@@ -12,6 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Collections;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
@@ -147,5 +152,72 @@ class CartServiceTest {
         Assertions.assertEquals(USER_ID, savedEntity.getUserId());
         Assertions.assertEquals(ITEM_ID, savedEntity.getItemId());
         Assertions.assertEquals(3, savedEntity.getQuantity());
+    }
+
+    @Test
+    void getCart_shouldReturnCartResponseWithZeroPrice_whenCartIsEmpty() {
+        // Arrange
+        Mockito.when(cartRepository.findByUserId(USER_ID)).thenReturn(Collections.emptyList());
+
+        // Act
+        Cart response = cartService.getCart(USER_ID);
+
+        // Assert
+        Assertions.assertNotNull(response);
+        Assertions.assertEquals(USER_ID, response.getUserId());
+        Assertions.assertTrue(response.getLineItems().isEmpty());
+        Assertions.assertEquals(0.0, response.getTotalCartPrice());
+
+        Mockito.verifyNoInteractions(bookService);
+    }
+
+    @Test
+    void getCart_shouldReturnPopulatedCartResponse_whenItemsExist() {
+        // Arrange: Mock 2 raw items inside the database cart repository
+        CartLineItemEntity entity1 = new CartLineItemEntity();
+        entity1.setItemId(101);
+        entity1.setQuantity(2);
+
+        CartLineItemEntity entity2 = new CartLineItemEntity();
+        entity2.setItemId(102);
+        entity2.setQuantity(1);
+
+        Mockito.when(cartRepository.findByUserId(USER_ID)).thenReturn(List.of(entity1, entity2));
+
+        // Arrange: Mock the metadata details from BookService using Lombok Builder
+        Book book1 = Book.builder()
+                .id(101)
+                .title("Spring Guide")
+                .price(25.0f)
+                .build();
+
+        Book book2 = Book.builder()
+                .id(102)
+                .title("Testing Guide")
+                .price(40.0f)
+                .build();
+
+        Mockito.when(bookService.getBookById(101)).thenReturn(book1);
+        Mockito.when(bookService.getBookById(102)).thenReturn(book2);
+
+        // Act
+        Cart response = cartService.getCart(USER_ID);
+
+        // Assert: Verify metadata composition fields
+        Assertions.assertNotNull(response);
+        Assertions.assertEquals(USER_ID, response.getUserId());
+        Assertions.assertEquals(2, response.getLineItems().size());
+
+        // Verify Total Math Calculation: (25.0 * 2) + (40.0 * 1) = 90.0
+        Assertions.assertEquals(90.0, response.getTotalCartPrice());
+
+        // Verify individual line item breakdowns
+        LineItemOutput res1 = response.getLineItems().get(0);
+        Assertions.assertEquals("Spring Guide", res1.getTitle());
+        Assertions.assertEquals(50.0, res1.getSubTotal());
+
+        LineItemOutput res2 = response.getLineItems().get(1);
+        Assertions.assertEquals("Testing Guide", res2.getTitle());
+        Assertions.assertEquals(40.0, res2.getSubTotal());
     }
 }

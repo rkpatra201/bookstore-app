@@ -7,7 +7,7 @@ import lombok.Data;
  */
 @Data
 public class CartLineItemEntity {
-    private Long id;         // PK Auto-increment
+    private int id;         // PK Auto-increment
     private String userId;   // Associates item to a specific session/user
     private Integer itemId;  // FK pointing to book table
     private int quantity;
