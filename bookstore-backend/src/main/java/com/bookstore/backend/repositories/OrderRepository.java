@@ -138,4 +138,31 @@ public class OrderRepository {
         return masterOrder;
     }
 
+    /**
+     * Retrieves all summary order records for a specific user ID.
+     * Excludes detailed line item collections to optimize list rendering.
+     */
+    public List<OrderEntity> findAllOrdersByUserId(String userId) {
+        String sql = """
+                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, created_at, updated_at
+                FROM orders 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            OrderEntity order = new OrderEntity();
+            order.setId(rs.getLong("id"));
+            order.setUserId(rs.getString("user_id"));
+            order.setShippingAddressSnapshot(rs.getString("shipping_address_snapshot"));
+            order.setTotalAmount(rs.getDouble("total_amount"));
+            order.setOrderStatus(rs.getString("order_status"));
+            order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+            order.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+            // lineItems list remains null or uninitialized on purpose for summary listings
+            return order;
+        }, userId);
+    }
+
+
 }

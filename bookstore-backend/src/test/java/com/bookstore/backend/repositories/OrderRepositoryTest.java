@@ -168,4 +168,67 @@ class OrderRepositoryTest {
         Assertions.assertNull(nonExistentOrder);
     }
 
+    @Test
+    void findAllOrdersByUserId_shouldReturnSummaryListInDescendingOrder_whenOrdersExist() throws InterruptedException {
+        String targetUserId = "customer-user-111";
+        String otherUserId = "noisy-neighbor-999";
+
+        // Arrange: Seed 2 separate orders for our target user
+        OrderEntity order1 = OrderEntity.builder()
+                .userId(targetUserId)
+                .shippingAddressSnapshot("Address 1")
+                .totalAmount(50.00)
+                .orderStatus("DELIVERED")
+                .build();
+
+        OrderEntity order2 = OrderEntity.builder()
+                .userId(targetUserId)
+                .shippingAddressSnapshot("Address 2")
+                .totalAmount(120.00)
+                .orderStatus("PENDING")
+                .build();
+
+        // Arrange: Seed an order for a different customer to verify multi-tenant query isolation bounds
+        OrderEntity noiseOrder = OrderEntity.builder()
+                .userId(otherUserId)
+                .shippingAddressSnapshot("Address 3")
+                .totalAmount(99.00)
+                .orderStatus("PENDING")
+                .build();
+
+        // Persist all entries sequentially
+        orderRepository.saveMasterOrder(order1);
+        // Small sleep or structural gap to ensure distinct auto-generated created_at timestamp sequences
+        Thread.sleep(1000);
+        orderRepository.saveMasterOrder(order2);
+        orderRepository.saveMasterOrder(noiseOrder);
+
+        // Act: Execute the query
+        List<OrderEntity> historicalSummaries = orderRepository.findAllOrdersByUserId(targetUserId);
+
+        // Assert: Verify size and check that noise values are excluded
+        Assertions.assertNotNull(historicalSummaries);
+        Assertions.assertEquals(2, historicalSummaries.size());
+
+        // Assert Descending Order Precedence Check: order2 must be element 0 (newest first)
+        Assertions.assertEquals(120.00, historicalSummaries.get(0).getTotalAmount());
+        Assertions.assertEquals("PENDING", historicalSummaries.get(0).getOrderStatus());
+        Assertions.assertNull(historicalSummaries.get(0).getLineItems()); // Line items must be omitted
+
+        // Check older entry
+        Assertions.assertEquals(50.00, historicalSummaries.get(1).getTotalAmount());
+        Assertions.assertEquals("DELIVERED", historicalSummaries.get(1).getOrderStatus());
+    }
+
+    @Test
+    void findAllOrdersByUserId_shouldReturnEmptyList_whenUserHasNoOrderHistory() {
+        // Act
+        List<OrderEntity> emptyHistory = orderRepository.findAllOrdersByUserId("new-user-with-zero-orders");
+
+        // Assert
+        Assertions.assertNotNull(emptyHistory);
+        Assertions.assertTrue(emptyHistory.isEmpty());
+    }
+
+
 }
