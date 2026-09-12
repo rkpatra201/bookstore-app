@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class BookService {
@@ -19,5 +20,10 @@ public class BookService {
 
     public List<Book> getBooks(){
       return bookMapper.toDtoList(bookRepository.findAllBooksWithAuthors());
+    }
+
+    public Book getBookById(Long id) {
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with ID: " + id));
     }
 }

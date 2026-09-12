@@ -2,16 +2,15 @@ package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.AuthorEntity;
 import com.bookstore.backend.entities.BookEntity;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Repository
 public class BookRepository {
@@ -68,4 +67,43 @@ public class BookRepository {
             }
         });
     }
+
+    public Optional<BookEntity> findById(Long id) {
+        // 1. Fetch the base book fields
+        String bookSql = "SELECT id, title, price, stock_qty FROM book WHERE id = ?";
+
+        try {
+            BookEntity book = jdbcTemplate.queryForObject(bookSql, (rs, rowNum) -> {
+                BookEntity b = new BookEntity();
+                b.setId(rs.getInt("id"));
+                b.setTitle(rs.getString("title"));
+                b.setPrice(rs.getFloat("price"));
+                b.setStockQty(rs.getInt("stock_qty"));
+                return b;
+            }, id);
+
+            // 2. Query and attach the associated authors
+            String authorSql = """
+                SELECT a.id, a.author_name, a.author_code 
+                FROM author a
+                JOIN book_author ba ON a.id = ba.author_id
+                WHERE ba.book_id = ?
+                """;
+
+            List<AuthorEntity> authors = jdbcTemplate.query(authorSql, (rs, rowNum) ->
+                    new AuthorEntity(
+                            rs.getInt("id"),
+                            rs.getString("author_name"),
+                            rs.getString("author_code")
+                    ), id
+            );
+
+            book.setAuthors(authors);
+            return Optional.of(book);
+
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
 }

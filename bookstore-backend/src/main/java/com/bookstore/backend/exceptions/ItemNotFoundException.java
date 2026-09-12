@@ -1,0 +1,4 @@
+package com.bookstore.backend.exceptions;
+
+public class ItemNotFoundException extends RuntimeException{
+}
