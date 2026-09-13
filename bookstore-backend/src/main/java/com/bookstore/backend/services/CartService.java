@@ -79,9 +79,9 @@ public class CartService {
             throw new IllegalArgumentException("Quantity must be greater than zero");
         }
 
-        Book book = this.bookService.getBookById(request.getId());
+        Book book = this.bookService.getBookById(request.getItemId());
         if (book.getStockQty() < request.getQuantity()) {
-            throw new IllegalArgumentException("Required stock is not available for item: " + request.getId());
+            throw new IllegalArgumentException("Required stock is not available for item: " + request.getItemId());
         }
     }
 

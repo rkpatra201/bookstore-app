@@ -30,17 +30,17 @@ public class CartIncrementStrategy implements CartUpdateStrategy {
     @Override
     public void update(String userId, LineItemRequest request) {
         // 1. Validate stock availability
-        Book book = bookService.getBookById(request.getId());
+        Book book = bookService.getBookById(request.getItemId());
         List<CartLineItemEntity> existingItems = cartRepository.findByUserId(userId);
 
         int currentQtyInCart = existingItems.stream()
-                .filter(item -> item.getItemId() == request.getId())
+                .filter(item -> item.getItemId() == request.getItemId())
                 .mapToInt(CartLineItemEntity::getQuantity)
                 .findFirst()
                 .orElse(0);
 
         if (book.getStockQty() < (currentQtyInCart + request.getQuantity())) {
-            throw new IllegalArgumentException("Required stock is not available for item: " + request.getId());
+            throw new IllegalArgumentException("Required stock is not available for item: " + request.getItemId());
         }
 
         // 2. Perform Save/Update mapping
