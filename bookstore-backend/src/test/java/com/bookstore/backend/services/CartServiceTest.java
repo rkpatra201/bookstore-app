@@ -72,6 +72,7 @@ class CartServiceTest {
         // Using Builder pattern for only required fields
         Book bookMock = Book.builder()
                 .id(ITEM_ID)
+                .title("Test Book")
                 .stockQty(9)
                 .build();
 
@@ -83,7 +84,7 @@ class CartServiceTest {
                 () -> cartService.addItemToCart(USER_ID, request)
         );
 
-        Assertions.assertEquals("Required stock is not available for item: " + ITEM_ID, exception.getMessage());
+        Assertions.assertEquals("Insufficient stock available for item: Test Book. Available: 9, Requested: 10", exception.getMessage());
 
         Mockito.verify(cartRepository, Mockito.never()).saveOrUpdate(Mockito.any(CartLineItemEntity.class));
     }

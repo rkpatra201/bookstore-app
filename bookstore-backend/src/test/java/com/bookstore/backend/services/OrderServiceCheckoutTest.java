@@ -3,6 +3,8 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import com.bookstore.backend.exceptions.ItemNotFoundException;
 import com.bookstore.backend.repositories.OrderRepository;
 import org.junit.jupiter.api.Assertions;
@@ -45,7 +47,7 @@ class OrderServiceCheckoutTest {
                 .build();
         Mockito.when(cartService.getCart(USER_ID)).thenReturn(emptyCart);
 
-        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID);
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.COD);
 
         // Act & Assert: Check fail-fast exception behavior
         IllegalStateException exception = Assertions.assertThrows(
@@ -70,7 +72,7 @@ class OrderServiceCheckoutTest {
                 .build();
         Mockito.when(cartService.getCart(USER_ID)).thenReturn(nullCart);
 
-        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID);
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.UPI);
 
         // Act & Assert
         IllegalStateException exception = Assertions.assertThrows(
@@ -80,6 +82,48 @@ class OrderServiceCheckoutTest {
 
         Assertions.assertEquals("Cannot checkout an empty shopping cart", exception.getMessage());
         Mockito.verifyNoInteractions(addressService);
+    }
+
+    @Test
+    void checkout_shouldThrowIllegalArgumentException_whenPaymentMethodIsNull() {
+        // Arrange: Mock a valid cart
+        LineItemResponse cartItem = LineItemResponse.builder()
+                .itemId(101)
+                .title("Test Book")
+                .unitPrice(50.0)
+                .quantity(1)
+                .subTotal(50.0)
+                .build();
+
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(List.of(cartItem))
+                .totalCartPrice(50.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
+        // Mock valid address
+        CustomerAddress mockAddress = CustomerAddress.builder()
+                .recipientName("John Doe")
+                .addressLine1("123 Main St")
+                .city("Bengaluru")
+                .state("Karnataka")
+                .postalCode("560016")
+                .country("India")
+                .build();
+        Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
+
+        // Create request with null payment method
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, null);
+
+        // Act & Assert
+        IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> orderService.checkout(USER_ID, request)
+        );
+
+        Assertions.assertEquals("Payment method is required for checkout", exception.getMessage());
+        Mockito.verifyNoInteractions(orderRepository);
     }
 
     @Test
@@ -123,7 +167,7 @@ class OrderServiceCheckoutTest {
         Mockito.doNothing().when(orderRepository).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), Mockito.anyList());
         Mockito.doNothing().when(cartService).clearCart(USER_ID);
 
-        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID);
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.COD);
 
         // Act
         OrderResponse response = orderService.checkout(USER_ID, request);
@@ -131,7 +175,8 @@ class OrderServiceCheckoutTest {
         // Assert: 4. Check that order invoice numbers match contract structures
         Assertions.assertNotNull(response);
         Assertions.assertEquals(EXPECTED_ORDER_ID, response.getOrderId());
-        Assertions.assertEquals("PENDING", response.getStatus());
+        Assertions.assertEquals(OrderStatus.RESERVED, response.getStatus());
+        Assertions.assertEquals(PaymentMethod.COD, response.getPaymentMethod());
         Assertions.assertEquals(130.0, response.getTotalAmount());
 
         // Assert: 5. Verify character flattening structure generated for the address text snapshot
@@ -141,7 +186,8 @@ class OrderServiceCheckoutTest {
         String expectedSnapshot = "John Doe, 123 Main St, Apt 4B, Bengaluru, Karnataka - 560016, India";
         Assertions.assertEquals(expectedSnapshot, orderCaptor.getValue().getShippingAddressSnapshot());
         Assertions.assertEquals(130.0, orderCaptor.getValue().getTotalAmount());
-        Assertions.assertEquals("PENDING", orderCaptor.getValue().getOrderStatus());
+        Assertions.assertEquals(OrderStatus.RESERVED, orderCaptor.getValue().getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.COD, orderCaptor.getValue().getPaymentMethod());
 
         // Assert: 6. Capture and verify the detail line item snapshot conversion maps correctly
         ArgumentCaptor<List<OrderLineItemEntity>> linesCaptor = ArgumentCaptor.forClass(List.class);
@@ -163,6 +209,57 @@ class OrderServiceCheckoutTest {
     }
 
     @Test
+    void checkout_shouldSetAwaitingPaymentStatus_whenPaymentMethodIsNotCOD() {
+        // Arrange: 1. Mock cart with items
+        LineItemResponse cartItem = LineItemResponse.builder()
+                .itemId(101)
+                .title("Test Book")
+                .unitPrice(50.0)
+                .quantity(1)
+                .subTotal(50.0)
+                .build();
+
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(List.of(cartItem))
+                .totalCartPrice(50.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
+        // Arrange: 2. Mock address
+        CustomerAddress mockAddress = CustomerAddress.builder()
+                .recipientName("Jane Doe")
+                .addressLine1("456 Oak St")
+                .city("Mumbai")
+                .state("Maharashtra")
+                .postalCode("400001")
+                .country("India")
+                .build();
+        Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
+
+        // Arrange: 3. Mock repository operations
+        Mockito.when(orderRepository.saveMasterOrder(Mockito.any(OrderEntity.class))).thenReturn(EXPECTED_ORDER_ID);
+        Mockito.doNothing().when(orderRepository).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), Mockito.anyList());
+        Mockito.doNothing().when(cartService).clearCart(USER_ID);
+
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.UPI);
+
+        // Act
+        OrderResponse response = orderService.checkout(USER_ID, request);
+
+        // Assert: Verify status is AWAITING_PAYMENT for non-COD payment methods
+        Assertions.assertNotNull(response);
+        Assertions.assertEquals(OrderStatus.AWAITING_PAYMENT, response.getStatus());
+        Assertions.assertEquals(PaymentMethod.UPI, response.getPaymentMethod());
+
+        // Verify order entity has correct status
+        ArgumentCaptor<OrderEntity> orderCaptor = ArgumentCaptor.forClass(OrderEntity.class);
+        Mockito.verify(orderRepository, Mockito.times(1)).saveMasterOrder(orderCaptor.capture());
+        Assertions.assertEquals(OrderStatus.AWAITING_PAYMENT, orderCaptor.getValue().getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.UPI, orderCaptor.getValue().getPaymentMethod());
+    }
+
+    @Test
     void getOrderById_shouldReturnDetailsResponseViaMapStruct_whenOrderExistsAndBelongsToUser() {
         // Arrange: 1. Setup a mock master-detail entity database snapshot
         OrderLineItemEntity lineItem = OrderLineItemEntity.builder()
@@ -179,7 +276,8 @@ class OrderServiceCheckoutTest {
                 .userId(USER_ID)
                 .shippingAddressSnapshot("John Doe, Main St, Bengaluru")
                 .totalAmount(60.0)
-                .orderStatus("SHIPPED")
+                .orderStatus(OrderStatus.PAYMENT_SUCCESS)
+                .paymentMethod(PaymentMethod.CC)
                 .createdAt(LocalDateTime.now())
                 .lineItems(List.of(lineItem))
                 .build();
@@ -192,7 +290,8 @@ class OrderServiceCheckoutTest {
         // Assert: 3. Verify MapStruct converted fields cleanly matching properties
         Assertions.assertNotNull(response);
         Assertions.assertEquals(ORDER_ID, response.getId());
-        Assertions.assertEquals("SHIPPED", response.getOrderStatus());
+        Assertions.assertEquals(OrderStatus.PAYMENT_SUCCESS, response.getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.CC, response.getPaymentMethod());
         Assertions.assertEquals("John Doe, Main St, Bengaluru", response.getShippingAddressSnapshot());
 
         // Assert nested children lists map properly through the mapper boundary
@@ -270,7 +369,8 @@ class OrderServiceCheckoutTest {
                 .userId(USER_ID)
                 .shippingAddressSnapshot("Address 1")
                 .totalAmount(75.00)
-                .orderStatus("DELIVERED")
+                .orderStatus(OrderStatus.PAYMENT_SUCCESS)
+                .paymentMethod(PaymentMethod.DC)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -279,7 +379,8 @@ class OrderServiceCheckoutTest {
                 .userId(USER_ID)
                 .shippingAddressSnapshot("Address 2")
                 .totalAmount(150.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.RESERVED)
+                .paymentMethod(PaymentMethod.COD)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -297,14 +398,16 @@ class OrderServiceCheckoutTest {
         Assertions.assertEquals(102L, actualFirst.getId());
         Assertions.assertEquals("Address 2", actualFirst.getShippingAddressSnapshot());
         Assertions.assertEquals(150.00, actualFirst.getTotalAmount());
-        Assertions.assertEquals("PENDING", actualFirst.getOrderStatus());
+        Assertions.assertEquals(OrderStatus.RESERVED, actualFirst.getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.COD, actualFirst.getPaymentMethod());
 
         // Validate second summary item structure mapping accuracy
         OrderSummaryResponse actualSecond = history.get(1);
         Assertions.assertEquals(101L, actualSecond.getId());
         Assertions.assertEquals("Address 1", actualSecond.getShippingAddressSnapshot());
         Assertions.assertEquals(75.00, actualSecond.getTotalAmount());
-        Assertions.assertEquals("DELIVERED", actualSecond.getOrderStatus());
+        Assertions.assertEquals(OrderStatus.PAYMENT_SUCCESS, actualSecond.getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.DC, actualSecond.getPaymentMethod());
 
         Mockito.verify(orderRepository, Mockito.times(1)).findAllOrdersByUserId(USER_ID);
     }

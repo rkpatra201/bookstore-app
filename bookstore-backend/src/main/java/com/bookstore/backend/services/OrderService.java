@@ -3,6 +3,8 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import com.bookstore.backend.exceptions.ItemNotFoundException;
 import com.bookstore.backend.mappers.OrderMapper;
 import com.bookstore.backend.repositories.OrderRepository;
@@ -32,7 +34,8 @@ public class OrderService {
      */
     @Transactional // Guarantees the order maps fully and the cart clears out as a single unit
     public OrderResponse checkout(String userId, CheckoutRequest request) {
-        log.info("Starting checkout process - User: {}, AddressId: {}", userId, request.getAddressId());
+        log.info("Starting checkout process - User: {}, AddressId: {}, PaymentMethod: {}",
+            userId, request.getAddressId(), request.getPaymentMethod());
 
         try {
             // 1. Fetch the authoritative server-side cart snapshot
@@ -47,19 +50,27 @@ public class OrderService {
             // 2. Fetch the target delivery address and verify security ownership bounds
             CustomerAddress address = addressService.getAddressById(request.getAddressId(), userId);
 
-            // 3. Freeze the address into a flat text snapshot format
+            // 3. Validate payment method is provided
+            if (request.getPaymentMethod() == null) {
+                log.warn("Checkout failed - User: {} - Payment method not provided", userId);
+                throw new IllegalArgumentException("Payment method is required for checkout");
+            }
+
+            // 4. Freeze the address into a flat text snapshot format
             String addressSnapshot = formatAddressSnapshot(address);
 
-            // 4. Build and persist the master order record
+            // 5. Build and persist the master order record
             OrderEntity masterOrder = OrderEntity.builder()
                     .userId(userId)
                     .shippingAddressSnapshot(addressSnapshot)
                     .totalAmount(cart.getTotalCartPrice())
-                    .orderStatus("PENDING")
+                    .orderStatus(determineInitialOrderStatus(request.getPaymentMethod()))
+                    .paymentMethod(request.getPaymentMethod())
                     .build();
 
             Long orderId = orderRepository.saveMasterOrder(masterOrder);
-            log.info("Order created - OrderId: {}, User: {}, Total: ${}", orderId, userId, String.format("%.2f", cart.getTotalCartPrice()));
+            log.info("Order created - OrderId: {}, User: {}, PaymentMethod: {}, Status: {}, Total: ${}",
+                orderId, userId, request.getPaymentMethod(), masterOrder.getOrderStatus(), String.format("%.2f", cart.getTotalCartPrice()));
 
             // 5. Mapping of lineItems to lineItemEntities
             List<OrderLineItemEntity> lineItemEntities = OrderMapper.INSTANCE
@@ -72,12 +83,25 @@ public class OrderService {
             cartService.clearCart(userId);
 
             // 7. Return the summarized response payload
-            log.info("Checkout completed successfully - OrderId: {}, User: {}, Total: ${}", orderId, userId, String.format("%.2f", cart.getTotalCartPrice()));
-            return new OrderResponse(orderId, "PENDING", cart.getTotalCartPrice());
+            log.info("Checkout completed successfully - OrderId: {}, User: {}, PaymentMethod: {}, Status: {}, Total: ${}",
+                orderId, userId, request.getPaymentMethod(), masterOrder.getOrderStatus(), String.format("%.2f", cart.getTotalCartPrice()));
+            return new OrderResponse(orderId, masterOrder.getOrderStatus(), request.getPaymentMethod(), cart.getTotalCartPrice());
         } catch (Exception e) {
             log.error("Checkout failed - User: {}, Error: {}", userId, e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * Determines the initial order status based on payment method.
+     * COD orders go to RESERVED (will be paid on delivery).
+     * Other payment methods go to AWAITING_PAYMENT (require immediate payment).
+     */
+    private OrderStatus determineInitialOrderStatus(PaymentMethod paymentMethod) {
+        if (paymentMethod == PaymentMethod.COD) {
+            return OrderStatus.RESERVED;
+        }
+        return OrderStatus.AWAITING_PAYMENT;
     }
 
     /**

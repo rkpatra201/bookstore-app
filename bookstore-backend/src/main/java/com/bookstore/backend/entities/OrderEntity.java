@@ -1,5 +1,7 @@
 package com.bookstore.backend.entities;
 
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +19,8 @@ public class OrderEntity {
     private String userId;
     private String shippingAddressSnapshot; // The frozen text copy of the address
     private double totalAmount;
-    private String orderStatus;
+    private OrderStatus orderStatus;
+    private PaymentMethod paymentMethod;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderLineItemEntity> lineItems; // Embedded detail list

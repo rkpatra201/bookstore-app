@@ -2,6 +2,8 @@ package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -26,8 +28,8 @@ public class OrderRepository {
      */
     public Long saveMasterOrder(OrderEntity order) {
         String sql = """
-                INSERT INTO orders (user_id, shipping_address_snapshot, total_amount, order_status)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO orders (user_id, shipping_address_snapshot, total_amount, order_status, payment_method)
+                VALUES (?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -37,7 +39,8 @@ public class OrderRepository {
             ps.setString(1, order.getUserId());
             ps.setString(2, order.getShippingAddressSnapshot());
             ps.setDouble(3, order.getTotalAmount());
-            ps.setString(4, order.getOrderStatus() != null ? order.getOrderStatus() : "PENDING");
+            ps.setString(4, order.getOrderStatus() != null ? order.getOrderStatus().name() : OrderStatus.RESERVED.name());
+            ps.setString(5, order.getPaymentMethod().name());
             return ps;
         }, keyHolder);
 
@@ -88,8 +91,8 @@ public class OrderRepository {
      */
     public OrderEntity findOrderById(Long orderId) {
         String orderSql = """
-                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, created_at, updated_at
-                FROM orders 
+                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, payment_method, created_at, updated_at
+                FROM orders
                 WHERE id = ?
                 """;
 
@@ -100,7 +103,8 @@ public class OrderRepository {
             order.setUserId(rs.getString("user_id"));
             order.setShippingAddressSnapshot(rs.getString("shipping_address_snapshot"));
             order.setTotalAmount(rs.getDouble("total_amount"));
-            order.setOrderStatus(rs.getString("order_status"));
+            order.setOrderStatus(OrderStatus.valueOf(rs.getString("order_status")));
+            order.setPaymentMethod(PaymentMethod.valueOf(rs.getString("payment_method")));
             order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
             order.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
             return order;
@@ -144,8 +148,8 @@ public class OrderRepository {
      */
     public List<OrderEntity> findAllOrdersByUserId(String userId) {
         String sql = """
-                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, created_at, updated_at
-                FROM orders 
+                SELECT id, user_id, shipping_address_snapshot, total_amount, order_status, payment_method, created_at, updated_at
+                FROM orders
                 WHERE user_id = ?
                 ORDER BY created_at DESC
                 """;
@@ -156,7 +160,8 @@ public class OrderRepository {
             order.setUserId(rs.getString("user_id"));
             order.setShippingAddressSnapshot(rs.getString("shipping_address_snapshot"));
             order.setTotalAmount(rs.getDouble("total_amount"));
-            order.setOrderStatus(rs.getString("order_status"));
+            order.setOrderStatus(OrderStatus.valueOf(rs.getString("order_status")));
+            order.setPaymentMethod(PaymentMethod.valueOf(rs.getString("payment_method")));
             order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
             order.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
             // lineItems list remains null or uninitialized on purpose for summary listings

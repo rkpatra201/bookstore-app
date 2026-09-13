@@ -1,5 +1,7 @@
 package com.bookstore.backend.dtos;
 
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +17,7 @@ public class OrderSummaryResponse {
     private Long id;
     private String shippingAddressSnapshot;
     private double totalAmount;
-    private String orderStatus;
+    private OrderStatus orderStatus;
+    private PaymentMethod paymentMethod;
     private LocalDateTime createdAt;
 }

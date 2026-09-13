@@ -2,6 +2,8 @@ package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +34,8 @@ class OrderRepositoryTest {
                 .userId(USER_ID)
                 .shippingAddressSnapshot(ADDRESS_SNAPSHOT)
                 .totalAmount(130.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.AWAITING_PAYMENT)
+                .paymentMethod(PaymentMethod.UPI)
                 .build();
 
         // Act: 2. Save the master order record and retrieve the generated key ID
@@ -73,7 +76,8 @@ class OrderRepositoryTest {
         Assertions.assertEquals(USER_ID, dbOrder.get("user_id"));
         Assertions.assertEquals(ADDRESS_SNAPSHOT, dbOrder.get("shipping_address_snapshot"));
         Assertions.assertEquals(130.00, ((Number) dbOrder.get("total_amount")).doubleValue());
-        Assertions.assertEquals("PENDING", dbOrder.get("order_status"));
+        Assertions.assertEquals("AWAITING_PAYMENT", dbOrder.get("order_status"));
+        Assertions.assertEquals("UPI", dbOrder.get("payment_method"));
 
         // Check Order Line Items table rows size and positional parameters
         List<Map<String, Object>> dbLineItems = jdbcTemplate.queryForList(
@@ -105,7 +109,8 @@ class OrderRepositoryTest {
                 .userId("customer-user-111")
                 .shippingAddressSnapshot("John Doe, 123 Main St, Bengaluru")
                 .totalAmount(95.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.RESERVED)
+                .paymentMethod(PaymentMethod.COD)
                 .build();
 
         Long generatedOrderId = orderRepository.saveMasterOrder(newOrder);
@@ -138,7 +143,8 @@ class OrderRepositoryTest {
         Assertions.assertEquals("customer-user-111", retrievedOrder.getUserId());
         Assertions.assertEquals("John Doe, 123 Main St, Bengaluru", retrievedOrder.getShippingAddressSnapshot());
         Assertions.assertEquals(95.00, retrievedOrder.getTotalAmount());
-        Assertions.assertEquals("PENDING", retrievedOrder.getOrderStatus());
+        Assertions.assertEquals(OrderStatus.RESERVED, retrievedOrder.getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.COD, retrievedOrder.getPaymentMethod());
         Assertions.assertNotNull(retrievedOrder.getCreatedAt());
 
         // Assert: 5. Verify the embedded collections size and content alignment
@@ -176,14 +182,16 @@ class OrderRepositoryTest {
                 .userId(targetUserId)
                 .shippingAddressSnapshot("Address 1")
                 .totalAmount(50.00)
-                .orderStatus("DELIVERED")
+                .orderStatus(OrderStatus.PAYMENT_SUCCESS)
+                .paymentMethod(PaymentMethod.CC)
                 .build();
 
         OrderEntity order2 = OrderEntity.builder()
                 .userId(targetUserId)
                 .shippingAddressSnapshot("Address 2")
                 .totalAmount(120.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.AWAITING_PAYMENT)
+                .paymentMethod(PaymentMethod.BANK)
                 .build();
 
         // Arrange: Seed an order for a different customer to verify multi-tenant query isolation bounds
@@ -191,7 +199,8 @@ class OrderRepositoryTest {
                 .userId(otherUserId)
                 .shippingAddressSnapshot("Address 3")
                 .totalAmount(99.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.RESERVED)
+                .paymentMethod(PaymentMethod.COD)
                 .build();
 
         // Persist all entries sequentially
@@ -210,12 +219,14 @@ class OrderRepositoryTest {
 
         // Assert Descending Order Precedence Check: order2 must be element 0 (newest first)
         Assertions.assertEquals(120.00, historicalSummaries.get(0).getTotalAmount());
-        Assertions.assertEquals("PENDING", historicalSummaries.get(0).getOrderStatus());
+        Assertions.assertEquals(OrderStatus.AWAITING_PAYMENT, historicalSummaries.get(0).getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.BANK, historicalSummaries.get(0).getPaymentMethod());
         Assertions.assertNull(historicalSummaries.get(0).getLineItems()); // Line items must be omitted
 
         // Check older entry
         Assertions.assertEquals(50.00, historicalSummaries.get(1).getTotalAmount());
-        Assertions.assertEquals("DELIVERED", historicalSummaries.get(1).getOrderStatus());
+        Assertions.assertEquals(OrderStatus.PAYMENT_SUCCESS, historicalSummaries.get(1).getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.CC, historicalSummaries.get(1).getPaymentMethod());
     }
 
     @Test

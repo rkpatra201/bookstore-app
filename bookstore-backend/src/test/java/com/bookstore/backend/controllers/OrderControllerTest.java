@@ -1,6 +1,8 @@
 package com.bookstore.backend.controllers;
 
 import com.bookstore.backend.dtos.*;
+import com.bookstore.backend.enums.OrderStatus;
+import com.bookstore.backend.enums.PaymentMethod;
 import com.bookstore.backend.services.OrderService;
 import com.bookstore.backend.services.UserContextService;
 import org.junit.jupiter.api.Assertions;
@@ -33,13 +35,13 @@ class OrderControllerTest {
     @Test
     void checkout_shouldReturnOkAndOrderDetails_whenSuccessful() {
         // Arrange
-        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID);
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.UPI);
 
         UserContext mockContext = Mockito.mock(UserContext.class);
         Mockito.when(mockContext.getUserId()).thenReturn(USER_ID);
         Mockito.when(userContextService.getUserContext()).thenReturn(mockContext);
 
-        OrderResponse mockOrderResponse = new OrderResponse(ORDER_ID, "PENDING", 120.0);
+        OrderResponse mockOrderResponse = new OrderResponse(ORDER_ID, OrderStatus.AWAITING_PAYMENT, PaymentMethod.UPI, 120.0);
         Mockito.when(orderService.checkout(USER_ID, request)).thenReturn(mockOrderResponse);
 
         // Act
@@ -54,6 +56,8 @@ class OrderControllerTest {
         Assertions.assertTrue(envelope.isSuccess());
         Assertions.assertEquals("Order placed successfully", envelope.getMessage());
         Assertions.assertEquals(ORDER_ID, envelope.getData().getOrderId());
+        Assertions.assertEquals(OrderStatus.AWAITING_PAYMENT, envelope.getData().getStatus());
+        Assertions.assertEquals(PaymentMethod.UPI, envelope.getData().getPaymentMethod());
 
         Mockito.verify(orderService, Mockito.times(1)).checkout(USER_ID, request);
     }
@@ -69,7 +73,8 @@ class OrderControllerTest {
                 .id(ORDER_ID)
                 .shippingAddressSnapshot("John Doe, Main St, Bengaluru")
                 .totalAmount(120.0)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.RESERVED)
+                .paymentMethod(PaymentMethod.COD)
                 .createdAt(LocalDateTime.now())
                 .lineItems(Collections.emptyList())
                 .build();
@@ -87,6 +92,8 @@ class OrderControllerTest {
         Assertions.assertTrue(envelope.isSuccess());
         Assertions.assertEquals("Order details retrieved successfully", envelope.getMessage());
         Assertions.assertEquals(ORDER_ID, envelope.getData().getId());
+        Assertions.assertEquals(OrderStatus.RESERVED, envelope.getData().getOrderStatus());
+        Assertions.assertEquals(PaymentMethod.COD, envelope.getData().getPaymentMethod());
 
         Mockito.verify(orderService, Mockito.times(1)).getOrderById(ORDER_ID, USER_ID);
     }
@@ -98,7 +105,8 @@ class OrderControllerTest {
                 .id(101L)
                 .shippingAddressSnapshot("Address 1")
                 .totalAmount(45.00)
-                .orderStatus("DELIVERED")
+                .orderStatus(OrderStatus.PAYMENT_SUCCESS)
+                .paymentMethod(PaymentMethod.CC)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -106,7 +114,8 @@ class OrderControllerTest {
                 .id(102L)
                 .shippingAddressSnapshot("Address 2")
                 .totalAmount(95.00)
-                .orderStatus("PENDING")
+                .orderStatus(OrderStatus.AWAITING_PAYMENT)
+                .paymentMethod(PaymentMethod.DC)
                 .createdAt(LocalDateTime.now())
                 .build();
 
