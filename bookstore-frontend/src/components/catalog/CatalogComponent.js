@@ -6,6 +6,8 @@ import Card from 'react-bootstrap/Card';
 import { Container, Image } from "react-bootstrap";
 import { Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from "../../providers/CartProvider";
+import { addToCartInvocation } from "../../client/WebClient";
 export function Catalog() {
 
     const [books, setBooks] = useState([]);
@@ -32,6 +34,14 @@ export function Catalog() {
 
 function BookGrid({ books }) {
     const navigate = useNavigate();
+    const {incrementCart} = useCart();
+
+    const addItemToCart = (item)=>{
+        addToCartInvocation(item)
+        .then(res=>res.json())
+        .then(json=>incrementCart(item))
+    }
+
     return (
         <Container className="my-4">
             <Row>
@@ -76,6 +86,7 @@ function BookGrid({ books }) {
                                         variant="primary"
                                         className="w-50 fw-medium btn-sm"
                                         disabled={item.stockQty <= 0}
+                                        onClick={()=>addItemToCart(item)}
                                     >
                                         {item.stockQty > 0 ? 'Add' : 'Out Of Stock'}
                                     </Button>
