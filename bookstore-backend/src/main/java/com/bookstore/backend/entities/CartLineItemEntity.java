@@ -11,5 +11,4 @@ public class CartLineItemEntity {
     private String userId;   // Associates item to a specific session/user
     private Integer itemId;  // FK pointing to book table
     private int quantity;
-    // Constructors, Getters, and Setters
 }

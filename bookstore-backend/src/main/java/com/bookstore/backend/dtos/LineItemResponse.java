@@ -11,6 +11,4 @@ public class LineItemResponse {
     private double unitPrice;
     private int quantity;
     private double subTotal; // Computed: unitPrice * quantity
-
-    // Constructors, Getters, Setters
 }

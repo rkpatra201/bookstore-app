@@ -5,7 +5,6 @@ import com.bookstore.backend.entities.BookEntity;
 import com.bookstore.backend.exceptions.ItemNotFoundException;
 import com.bookstore.backend.mappers.BookMapper;
 import com.bookstore.backend.repositories.BookRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,10 +12,12 @@ import java.util.List;
 @Service
 public class BookService {
 
-    @Autowired
-    private BookRepository bookRepository;
+    private final BookRepository bookRepository;
+    private final BookMapper bookMapper = BookMapper.INSTANCE;
 
-    private BookMapper bookMapper = BookMapper.INSTANCE;
+    public BookService(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+    }
 
     public List<Book> getBooks() {
         return bookMapper.toDtoList(bookRepository.findAllBooksWithAuthors());

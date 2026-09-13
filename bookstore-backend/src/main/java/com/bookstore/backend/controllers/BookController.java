@@ -80,15 +80,6 @@ public class BookController {
 
         Book book = bookService.getBookById(id);
 
-        if (book == null) {
-            DataResponse<Book> errorResponse = new DataResponse<>(
-                    false,
-                    "Book not found with ID: " + id,
-                    null
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-        }
-
         DataResponse<Book> successResponse = new DataResponse<>(
                 true,
                 "Book retrieved successfully",

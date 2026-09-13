@@ -6,8 +6,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserContextService {
 
+    private static final ThreadLocal<String> userContextHolder = new ThreadLocal<>();
+
     public UserContext getUserContext() {
-        // GET it from thread local, the web-filter must set it to thread local by extracting from headers
-        return new UserContext("user123"); //
+        String userId = userContextHolder.get();
+        if (userId == null || userId.isBlank()) {
+            userId = "user123"; // Fallback for development/demo purposes
+        }
+        return new UserContext(userId);
+    }
+
+    public void setUserContext(String userId) {
+        userContextHolder.set(userId);
+    }
+
+    public void clearUserContext() {
+        userContextHolder.remove();
     }
 }
