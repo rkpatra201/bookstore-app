@@ -104,3 +104,21 @@ CREATE TABLE IF NOT EXISTS order_line_items (
 -- Optimization Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_line_items_order_id ON order_line_items(order_id);
+
+-- User Account Table
+DROP TABLE IF EXISTS user_account;
+
+CREATE TABLE user_account (
+    user_id VARCHAR(36) NOT NULL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100),
+    password VARCHAR(255) NOT NULL,
+    blocked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Optimization Indexes for user_account
+CREATE INDEX IF NOT EXISTS idx_user_account_user_id ON user_account(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_account_email ON user_account(email);

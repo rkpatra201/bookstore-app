@@ -11,6 +11,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+  @ExceptionHandler(UserAccountException.class)
+  public ResponseEntity<DataResponse<Void>> handleUserAccountException(UserAccountException ex) {
+    log.error("Error while processing request: ", ex);
+
+    DataResponse<Void> response = new DataResponse<>(false, ex.getMessage(), null);
+    return ResponseEntity.status(ex.getHttpCode()).body(response);
+  }
+
   @ExceptionHandler(ItemNotFoundException.class)
   public ResponseEntity<DataResponse<Void>> handleNotFound(ItemNotFoundException ex) {
     log.error("Error while processing request: ", ex);
