@@ -14,18 +14,19 @@ export function orderInvocation(){
  }
 }
 
-function processCheckout(addressId){
+function processCheckout(addressId, paymentMethod){
   const payload = {
         addressId: addressId,
+        paymentMethod: paymentMethod
     };
-    
+
     return fetch(ORDER_URL+'/checkout', {
         method: 'POST', // Specify the HTTP method
         headers: {
             'Content-Type': 'application/json' // Tell the server you're sending JSON
         },
         body: JSON.stringify(payload) // Convert the JS object into a JSON string
-    });  
+    });
 }
 
 export function loadCartDataInvocation() {

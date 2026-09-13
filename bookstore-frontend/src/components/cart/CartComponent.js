@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Container, Row, Col, Card, Spinner, Alert } from 'react-bootstrap';
+import { Table, Button, Container, Row, Col, Card, Spinner, Alert, Form } from 'react-bootstrap';
 import { CART_URL } from '../../constants/AppConstants';
+import { PAYMENT_METHODS } from '../../constants/PaymentMethods';
 import { useCart } from '../../providers/CartProvider';
 import { addToCartInvocation, deleteLineItemInvocation, orderInvocation, reduceFromCartInvocation } from '../../client/WebClient';
 import { AddressCardComponent, AddressComponent, AddressListComponent } from '../me/AddressComponent';
@@ -10,6 +11,7 @@ export function Cart() {
     // 1. Data management states
     const [cartData, setCartData] = useState(null);
     const [address, setAddress] = useState({});
+    const [paymentMethod, setPaymentMethod] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [serverMessage, setServerMessage] = useState('');
@@ -83,24 +85,29 @@ export function Cart() {
             return
         };
 
-        let isCheckoutSuccess = false;
+        // Validate payment method selection
+        if (!paymentMethod) {
+            alert('Please select a payment method');
+            return;
+        }
+
+        let orderId = null;
         try {
-            const response = await orderInvocation().checkout(address.id);
+            const response = await orderInvocation().checkout(address.id, paymentMethod);
             const payload = await response.json();
             if (response.ok && payload.success) {
-                setServerMessage({ type: 'success', text: 'Order placed successfully!' });
+                setServerMessage({ type: 'success', text: 'Order placed successfully! Redirecting to payment...' });
+                orderId = payload.data?.orderId || payload.data?.id;
+                setCart(0);
+                // Redirect to payment page with orderId
+                setTimeout(() => {
+                    navigate(`/payment/${orderId}`);
+                }, 2000);
             } else {
                 throw new Error(payload.message || 'Server rejected order validation mapping parameters.');
             }
-           isCheckoutSuccess = true;
         } catch (error) {
             setServerMessage({ type: 'danger', text: error.message });
-        } finally {
-            setTimeout(() => {
-                setServerMessage(null);
-                if(isCheckoutSuccess) setCart(0)
-                setCheckoutSuccess(isCheckoutSuccess);
-            }, 5000);
         }
     };
 
@@ -227,14 +234,27 @@ export function Cart() {
                                     <span>Grand Total</span>
                                     <span>${Number(cartData?.totalCartPrice).toFixed(2)}</span>
                                 </div>
+
+                                {/* Payment Method Dropdown */}
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="fw-bold">Payment Method</Form.Label>
+                                    <Form.Select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                        className="shadow-sm"
+                                    >
+                                        <option value="">Select Payment Method</option>
+                                        {PAYMENT_METHODS.map((method) => (
+                                            <option key={method.value} value={method.value}>
+                                                {method.label}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+
                                 <Button variant="success" onClick={handleCheckout} size="lg" className="w-100 fw-bold py-2 shadow-sm">
                                     Proceed to Checkout
                                 </Button>
-                                {
-                                    checkoutSuccess &&
-                                    navigate('/')
-
-                                }
                             </Card.Body>
                         </Card>
                     </Col>

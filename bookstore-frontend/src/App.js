@@ -11,6 +11,7 @@ import { NotFound } from './components/navigation/NotFound';
 import { OrderHistory } from './components/orders/OrderComponent';
 import { CartProvider } from './providers/CartProvider';
 import { MeComponent } from './components/me/MeComponent';
+import { Payment } from './components/payment/PaymentComponent';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route path='/' element={<Catalog/>}/>
             <Route path='/book/:id' element={<CatalogItemDetails/>}/>
             <Route path='/cart' element={<Cart/>}/>
+            <Route path='/payment/:orderId' element={<Payment/>}/>
             <Route path='/orders' element={<OrderHistory/>}/>
             <Route path='/me' element={<MeComponent/>}/>
             <Route path='/*' element={<NotFound/>}/>
