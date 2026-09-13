@@ -23,7 +23,6 @@ public interface OrderMapper {
 
     OrderLineItemResponse toLineItemDto(OrderLineItemEntity entity);
 
-    @Mapping(target = "orderId", source = "orderId")
     @Mapping(target = "id", ignore = true)
         // Database auto-generates this PK row ID
     OrderLineItemEntity toLineItemEntity(LineItemResponse cartItem, Long orderId);

@@ -56,7 +56,7 @@ public class CartService {
                             .subTotal(subTotal)
                             .unitPrice(unitPrice)
                             .quantity(quantity)
-                            .id(book.getId())
+                            .itemId(book.getId())
                             .title(book.getTitle())
                             .build();
 
