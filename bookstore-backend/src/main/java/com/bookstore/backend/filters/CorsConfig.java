@@ -20,7 +20,7 @@ public class CorsConfig {
         config.setAllowCredentials(true);
 
         // 2. Specify allowed frontend source domains explicitly (Production requirement)
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173")); 
+        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
         // Note: Use config.addAllowedOriginPattern("*") ONLY for internal open dev spaces
 
         // 3. Define allowed HTTP action methods
@@ -31,7 +31,7 @@ public class CorsConfig {
 
         // 5. Register configuration rules globally across all api route match filters
         source.registerCorsConfiguration("/**", config);
-        
+
         return new CorsFilter(source);
     }
 }

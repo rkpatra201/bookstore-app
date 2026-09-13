@@ -8,22 +8,22 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+
 import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceStrategyTest {
 
+    private static final String USER_ID = "user-123";
     private CartUpdateStrategy incrementStrategy;
     private CartUpdateStrategy decrementStrategy;
     private CartService cartService;
-
-    private static final String USER_ID = "user-123";
 
     @BeforeEach
     void setUp() {
         incrementStrategy = Mockito.mock(CartUpdateStrategy.class);
         decrementStrategy = Mockito.mock(CartUpdateStrategy.class);
-        
+
         // Mock application scopes
         // Build service manually with list of mocked strategies
         cartService = Mockito.spy(new CartService(null, null, List.of(incrementStrategy, decrementStrategy)));
@@ -32,7 +32,7 @@ class CartServiceStrategyTest {
     @Test
     void updateItemQuantity_shouldInvokeIncrementStrategy_whenDeltaIsPositive() {
         // Arrange
-        Mockito.when(incrementStrategy.isCartUpdateAllowed(Mockito.anyInt())).thenAnswer(inv -> (int)inv.getArgument(0) > 0);
+        Mockito.when(incrementStrategy.isCartUpdateAllowed(Mockito.anyInt())).thenAnswer(inv -> (int) inv.getArgument(0) > 0);
         LineItemRequest request = new LineItemRequest(501, 2); // Delta = +2
         Mockito.doReturn(Cart.builder().build()).when(cartService).getCart(USER_ID);
 
@@ -47,7 +47,7 @@ class CartServiceStrategyTest {
     @Test
     void updateItemQuantity_shouldInvokeDecrementStrategy_whenDeltaIsNegative() {
         // Arrange
-        Mockito.when(decrementStrategy.isCartUpdateAllowed(Mockito.anyInt())).thenAnswer(inv -> (int)inv.getArgument(0) < 0);
+        Mockito.when(decrementStrategy.isCartUpdateAllowed(Mockito.anyInt())).thenAnswer(inv -> (int) inv.getArgument(0) < 0);
 
         LineItemRequest request = new LineItemRequest(501, -3); // Delta = -3
         Mockito.doReturn(Cart.builder().build()).when(cartService).getCart(USER_ID);

@@ -28,11 +28,12 @@ public class CartService {
     }
 
     public Cart getCart(String userId) {
-        List<LineItemResponse> lineItemRespons = getCartItemsByUserId(userId);
+        List<LineItemResponse> lineItemResponse = getCartItemsByUserId(userId);
         return Cart.builder()
                 .userId(userId)
-                .lineItems(lineItemRespons)
-                .totalCartPrice(lineItemRespons.stream()
+                .lineItems(lineItemResponse)
+                .itemCount(lineItemResponse.stream().mapToInt(LineItemResponse::getQuantity).sum())
+                .totalCartPrice(lineItemResponse.stream()
                         .mapToDouble(LineItemResponse::getSubTotal)
                         .sum()).build();
     }
@@ -55,7 +56,7 @@ public class CartService {
                             .subTotal(subTotal)
                             .unitPrice(unitPrice)
                             .quantity(quantity)
-                            .itemId(book.getId())
+                            .id(book.getId())
                             .title(book.getTitle())
                             .build();
 
@@ -78,9 +79,9 @@ public class CartService {
             throw new IllegalArgumentException("Quantity must be greater than zero");
         }
 
-        Book book = this.bookService.getBookById(request.getItemId());
+        Book book = this.bookService.getBookById(request.getId());
         if (book.getStockQty() < request.getQuantity()) {
-            throw new IllegalArgumentException("Required stock is not available for item: " + request.getItemId());
+            throw new IllegalArgumentException("Required stock is not available for item: " + request.getId());
         }
     }
 

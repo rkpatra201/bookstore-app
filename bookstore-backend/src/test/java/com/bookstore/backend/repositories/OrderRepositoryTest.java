@@ -18,14 +18,12 @@ import java.util.Map;
 @Import(OrderRepository.class)
 class OrderRepositoryTest {
 
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
     private static final String USER_ID = "customer-user-111";
     private static final String ADDRESS_SNAPSHOT = "Flat 402, Green Glen Layout, Bengaluru, Karnataka, 560103";
+    @Autowired
+    private OrderRepository orderRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void saveMasterOrderAndLineItems_shouldPersistCorrectlyInDatabase() {
@@ -67,7 +65,7 @@ class OrderRepositoryTest {
         orderRepository.saveOrderLineItems(generatedOrderId, lineItems);
 
         // --- Assertions via Direct Table Queries ---
-        
+
         // Check Master Orders table row values
         Map<String, Object> dbOrder = jdbcTemplate.queryForMap(
                 "SELECT * FROM orders WHERE id = ?", generatedOrderId

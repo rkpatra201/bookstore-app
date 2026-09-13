@@ -60,7 +60,7 @@ public class CartController {
             @RequestBody LineItemRequest request) {
 
         // 1. Enforce that path variable and request body payload IDs align
-        request.setItemId(itemId);
+        request.setId(itemId);
 
         // 2. Resolve user context identity details
         String userId = userContextService.getUserContext().getUserId();

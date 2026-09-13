@@ -10,8 +10,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 
 @JdbcTest
 @ActiveProfiles("test")
@@ -21,7 +19,8 @@ class CartRepositoryTest {
     private static final String USER_ID = "user-abc-123";
     private static final int TARGET_ITEM_ID = 501;
     private static final int OTHER_ITEM_ID = 777;
-
+    private static final String TARGET_USER_ID = "user-abc-123";
+    private static final String OTHER_USER_ID = "user-xyz-789";
     @Autowired
     private CartRepository cartRepository;
 
@@ -34,9 +33,6 @@ class CartRepositoryTest {
         cartRepository.saveOrUpdate(cartLineItemEntity);
         cartRepository.saveOrUpdate(cartLineItemEntity);
     }
-
-    private static final String TARGET_USER_ID = "user-abc-123";
-    private static final String OTHER_USER_ID = "user-xyz-789";
 
     @Test
     void findByUserId_shouldReturnEmptyList_whenUserHasNoItems() {

@@ -17,14 +17,12 @@ import java.util.List;
 @ExtendWith(MockitoExtension.class)
 class AddressServiceTest {
 
-    @Mock
-    private AddressRepository addressRepository;
-
-    @InjectMocks
-    private AddressService addressService;
-
     private static final String USER_ID = "user-abc-123";
     private static final Long ADDRESS_ID = 55L;
+    @Mock
+    private AddressRepository addressRepository;
+    @InjectMocks
+    private AddressService addressService;
 
     @Test
     void addAddress_shouldMapDataAndInvokeRepositorySuccessfully() {
@@ -111,7 +109,7 @@ class AddressServiceTest {
 
         ArgumentCaptor<CustomerAddressEntity> entityCaptor = ArgumentCaptor.forClass(CustomerAddressEntity.class);
         Mockito.verify(addressRepository, Mockito.times(1)).updateByIdAndUserId(entityCaptor.capture());
-        
+
         CustomerAddressEntity captured = entityCaptor.getValue();
         Assertions.assertEquals(ADDRESS_ID, captured.getId());
         Assertions.assertEquals(USER_ID, captured.getUserId());

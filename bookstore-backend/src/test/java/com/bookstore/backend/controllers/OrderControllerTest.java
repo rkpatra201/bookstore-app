@@ -20,18 +20,15 @@ import java.util.List;
 @ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
 
-    @Mock
-    private OrderService orderService;
-
-    @Mock
-    private UserContextService userContextService;
-
-    @InjectMocks
-    private OrderController orderController;
-
     private static final String USER_ID = "customer-user-111";
     private static final Long ADDRESS_ID = 55L;
     private static final Long ORDER_ID = 999L;
+    @Mock
+    private OrderService orderService;
+    @Mock
+    private UserContextService userContextService;
+    @InjectMocks
+    private OrderController orderController;
 
     @Test
     void checkout_shouldReturnOkAndOrderDetails_whenSuccessful() {

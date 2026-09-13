@@ -21,6 +21,6 @@ public class CartDecrementStrategy implements CartUpdateStrategy {
     @Override
     public void update(String userId, LineItemRequest request) {
         int quantityToReduce = Math.abs(request.getQuantity());
-        cartRepository.reduceItemCount(userId, request.getItemId(), quantityToReduce);
+        cartRepository.reduceItemCount(userId, request.getId(), quantityToReduce);
     }
 }

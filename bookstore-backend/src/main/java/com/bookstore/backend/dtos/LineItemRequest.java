@@ -10,6 +10,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class LineItemRequest {
-    private Integer itemId;
+    private Integer id;
     private int quantity;
 }

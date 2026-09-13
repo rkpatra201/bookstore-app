@@ -5,12 +5,12 @@ import com.bookstore.backend.entities.BookEntity;
 import com.bookstore.backend.entities.ImageEntity;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Repository
 public class BookRepository {
@@ -67,10 +67,10 @@ public class BookRepository {
 
         // 3. Third focused query: Fetch and group all images attached to books
         String imageSql = """
-        SELECT bi.book_id, bi.is_primary, i.id AS image_id, i.url, i.alt_text
-        FROM book_images bi
-        JOIN images i ON bi.image_id = i.id
-        """;
+                SELECT bi.book_id, bi.is_primary, i.id AS image_id, i.url, i.alt_text
+                FROM book_images bi
+                JOIN images i ON bi.image_id = i.id
+                """;
 
         Map<Integer, List<ImageEntity>> imagesMap = jdbcTemplate.query(imageSql, rs -> {
             Map<Integer, List<ImageEntity>> map = new java.util.HashMap<>();
@@ -137,11 +137,11 @@ public class BookRepository {
             book.setAuthors(authors);
 
             String imageSql = """
-                SELECT i.id, i.url, i.alt_text
-                FROM images i
-                JOIN book_images bi ON i.id = bi.image_id
-                WHERE bi.book_id = ?
-                """;
+                    SELECT i.id, i.url, i.alt_text
+                    FROM images i
+                    JOIN book_images bi ON i.id = bi.image_id
+                    WHERE bi.book_id = ?
+                    """;
             List<ImageEntity> images = jdbcTemplate.query(imageSql, (rs, rowNum) ->
                     ImageEntity.builder()
                             .id(rs.getLong("id"))

@@ -21,21 +21,19 @@ import java.util.List;
 @ExtendWith(MockitoExtension.class)
 class OrderServiceCheckoutTest {
 
-    @Mock
-    private CartService cartService;
-
-    @Mock
-    private AddressService addressService;
-
-    @Mock
-    private OrderRepository orderRepository;
-
-    @InjectMocks
-    private OrderService orderService;
-
     private static final String USER_ID = "customer-user-111";
     private static final Long ADDRESS_ID = 55L;
     private static final Long EXPECTED_ORDER_ID = 999L;
+    private static final String ATTACKER_USER_ID = "hacker-user-999";
+    private static final Long ORDER_ID = 888L;
+    @Mock
+    private CartService cartService;
+    @Mock
+    private AddressService addressService;
+    @Mock
+    private OrderRepository orderRepository;
+    @InjectMocks
+    private OrderService orderService;
 
     @Test
     void checkout_shouldThrowIllegalStateException_whenCartIsEmpty() {
@@ -88,14 +86,14 @@ class OrderServiceCheckoutTest {
     void checkout_shouldCompleteWorkflowSuccessfully_whenCartHasItemsAndAddressIsValid() {
         // Arrange: 1. Mock populated shopping cart items
         LineItemResponse.LineItemResponseBuilder cartItem1 = LineItemResponse.builder();
-        cartItem1.itemId(101);
+        cartItem1.id(101);
         cartItem1.title("Spring Framework In Action");
         cartItem1.unitPrice(45.0);
         cartItem1.quantity(2);
         cartItem1.subTotal(90.0);
 
         LineItemResponse.LineItemResponseBuilder cartItem2 = LineItemResponse.builder();
-        cartItem2.itemId(102);
+        cartItem2.id(102);
         cartItem2.title("Clean Code Mastery");
         cartItem2.unitPrice(40.0);
         cartItem2.quantity(1);
@@ -163,9 +161,6 @@ class OrderServiceCheckoutTest {
         // Assert: 7. Verify final workflow termination step executes properly
         Mockito.verify(cartService, Mockito.times(1)).clearCart(USER_ID);
     }
-
-    private static final String ATTACKER_USER_ID = "hacker-user-999";
-    private static final Long ORDER_ID = 888L;
 
     @Test
     void getOrderById_shouldReturnDetailsResponseViaMapStruct_whenOrderExistsAndBelongsToUser() {

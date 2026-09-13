@@ -11,10 +11,10 @@ INSERT INTO author (author_name, author_code) VALUES ('Gilbert Strang', 'GS004')
 -- 2. INSERT BOOKS
 -- Note: 'id' is omitted as it is AUTO_INCREMENT (Generates IDs 1 to 4)
 -- ==========================================
-INSERT INTO book (title, price, stock_qty) VALUES ('Harry Potter and the Sorcerer''s Stone', 19.99, 120); -- id: 1
-INSERT INTO book (title, price, stock_qty) VALUES ('A Game of Thrones', 24.99, 85);                     -- id: 2
-INSERT INTO book (title, price, stock_qty) VALUES ('The Way of Kings', 29.99, 50);                      -- id: 3
-INSERT INTO book (title, price, stock_qty) VALUES ('Introduction to Linear Algebra, Fifth Edition', 85.00, 35); -- id: 4
+INSERT INTO book (title, price, stock_qty) VALUES ('Harry Potter and the Sorcerer''s Stone', 19.99, 4); -- id: 1
+INSERT INTO book (title, price, stock_qty) VALUES ('A Game of Thrones', 24.99, 3);                     -- id: 2
+INSERT INTO book (title, price, stock_qty) VALUES ('The Way of Kings', 29.99, 2);                      -- id: 3
+INSERT INTO book (title, price, stock_qty) VALUES ('Introduction to Linear Algebra, Fifth Edition', 85.00, 5); -- id: 4
 
 -- ==========================================
 -- 3. LINK BOOKS TO AUTHORS (Join Table)

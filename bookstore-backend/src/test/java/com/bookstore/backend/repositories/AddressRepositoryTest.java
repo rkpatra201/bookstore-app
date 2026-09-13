@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.jdbc.Sql;
 
 import java.util.List;
 
@@ -16,11 +15,10 @@ import java.util.List;
 @Import(AddressRepository.class)
 class AddressRepositoryTest {
 
-    @Autowired
-    private AddressRepository addressRepository;
-
     private static final String USER_ID = "user-customer-777";
     private static final String ATTACKER_USER_ID = "user-malicious-999";
+    @Autowired
+    private AddressRepository addressRepository;
 
     @Test
     void addressLifecycle_shouldAddAndFindAddressCorrectly() {
@@ -89,7 +87,7 @@ class AddressRepositoryTest {
 
         // Malicious user attempts payload tampering targeting victim id
         CustomerAddressEntity maliciousPayload = createSampleAddress(ATTACKER_USER_ID, "Hacked Alias");
-        maliciousPayload.setId(savedInstance.getId()); 
+        maliciousPayload.setId(savedInstance.getId());
 
         // Act
         boolean isUpdated = addressRepository.updateByIdAndUserId(maliciousPayload);

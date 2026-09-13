@@ -3,7 +3,7 @@ package com.bookstore.backend.controllers;
 import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.DataResponse;
 import com.bookstore.backend.dtos.LineItemRequest;
-import com.bookstore.backend.dtos.UserContext; // Assuming your UserContext class package
+import com.bookstore.backend.dtos.UserContext;
 import com.bookstore.backend.services.CartService;
 import com.bookstore.backend.services.UserContextService;
 import org.junit.jupiter.api.Assertions;
@@ -21,18 +21,15 @@ import java.util.Collections;
 @ExtendWith(MockitoExtension.class)
 class CartControllerTest {
 
-    @Mock
-    private CartService cartService;
-
-    @Mock
-    private UserContextService userContextService;
-
-    @InjectMocks
-    private CartController cartController;
-
     private static final String USER_ID = "user-123";
     private static final int ITEM_ID = 999;
     private static final int QUANTITY = 2;
+    @Mock
+    private CartService cartService;
+    @Mock
+    private UserContextService userContextService;
+    @InjectMocks
+    private CartController cartController;
 
     @Test
     void addToCart_shouldReturnOkStatusAndValidResponse_whenItemAddedSuccessfully() {

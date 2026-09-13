@@ -21,17 +21,14 @@ import java.util.List;
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
 
-    @Mock
-    private CartRepository cartRepository;
-
-    @Mock
-    private BookService bookService;
-
-    @InjectMocks
-    private CartService cartService;
-
     private static final String USER_ID = "user-123";
     private static final int ITEM_ID = 999;
+    @Mock
+    private CartRepository cartRepository;
+    @Mock
+    private BookService bookService;
+    @InjectMocks
+    private CartService cartService;
 
     @Test
     void addItemToCart_shouldThrowException_whenQuantityIsZero() {
