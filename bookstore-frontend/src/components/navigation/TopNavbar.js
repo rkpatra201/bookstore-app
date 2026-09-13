@@ -38,7 +38,7 @@ function TopNavbar() {
                 </Button>
               </LinkContainer>
 
-              <LinkContainer to="/profile">
+              <LinkContainer to="/me">
                 <Button variant="primary" className="fw-semibold px-3 btn-sm rounded-pill shadow-sm">👤 Me</Button>
               </LinkContainer>
             </Nav>

@@ -2,16 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Container, Row, Col, Card, Spinner, Alert } from 'react-bootstrap';
 import { CART_URL } from '../../constants/AppConstants';
 import { useCart } from '../../providers/CartProvider';
-import { addToCartInvocation, deleteLineItemInvocation, reduceFromCartInvocation } from '../../client/WebClient';
+import { addToCartInvocation, deleteLineItemInvocation, orderInvocation, reduceFromCartInvocation } from '../../client/WebClient';
+import { AddressCardComponent, AddressComponent, AddressListComponent } from '../me/AddressComponent';
+import { useNavigate } from 'react-router-dom';
 
 export function Cart() {
     // 1. Data management states
     const [cartData, setCartData] = useState(null);
+    const [address, setAddress] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [serverMessage, setServerMessage] = useState('');
+    const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
     // Hook provider to sync context navbar values later if required
     const { cartCount, incrementCart, decrementCart, setCart } = useCart();
+
+    const navigate = useNavigate();
+
 
     // 2. Fetch authoritative server-side cart state on mount (runs exactly once due to [])
     useEffect(() => {
@@ -57,7 +65,43 @@ export function Cart() {
         console.log("Trigger removal delete for itemId:", item);
         deleteLineItemInvocation(item.itemId)
             .then(res => res.json())
-            .then(data => setCart(cartCount-item.quantity))
+            .then(data => setCart(cartCount - item.quantity))
+    };
+
+    const addressSelectionHandler = (addr) => {
+        setAddress(addr);
+    }
+
+    const handleCheckout = async (e) => {
+        console.log('Form Submit : Save Checkout')
+        e.preventDefault(); // Stop default browser full-page reload triggers
+        setServerMessage(null);
+
+        // Validate parameters locally before dispatching HTTP network requests
+        if (!address.id) {
+            alert('Please select valid address for shipping');
+            return
+        };
+
+        let isCheckoutSuccess = false;
+        try {
+            const response = await orderInvocation().checkout(address.id);
+            const payload = await response.json();
+            if (response.ok && payload.success) {
+                setServerMessage({ type: 'success', text: 'Order placed successfully!' });
+            } else {
+                throw new Error(payload.message || 'Server rejected order validation mapping parameters.');
+            }
+           isCheckoutSuccess = true;
+        } catch (error) {
+            setServerMessage({ type: 'danger', text: error.message });
+        } finally {
+            setTimeout(() => {
+                setServerMessage(null);
+                if(isCheckoutSuccess) setCart(0)
+                setCheckoutSuccess(isCheckoutSuccess);
+            }, 5000);
+        }
     };
 
     // 3. Conditional boundary state display screens
@@ -89,7 +133,7 @@ export function Cart() {
                     <h4>Your cart is empty</h4>
                     <p className="text-muted mb-0">Head back to the catalog to choose your favorite titles!</p>
                 </Alert>
-            ) : (
+            ) : <>
                 <Row>
                     {/* Main Items Listing Grid Column */}
                     <Col lg={8} className="mb-4">
@@ -165,6 +209,11 @@ export function Cart() {
 
                     {/* Pricing Summary Sidepanel Column Block */}
                     <Col lg={4}>
+                        {serverMessage && (
+                            <Alert variant={serverMessage.type} className="mb-4 shadow-sm">
+                                {serverMessage.text}
+                            </Alert>
+                        )}
                         <Card className="shadow-sm border border-light p-3 position-sticky" style={{ top: '90px' }}>
                             <Card.Body>
                                 <h4 className="fw-bold border-bottom pb-2 mb-3">Order Summary</h4>
@@ -178,14 +227,39 @@ export function Cart() {
                                     <span>Grand Total</span>
                                     <span>${Number(cartData?.totalCartPrice).toFixed(2)}</span>
                                 </div>
-                                <Button variant="success" size="lg" className="w-100 fw-bold py-2 shadow-sm">
+                                <Button variant="success" onClick={handleCheckout} size="lg" className="w-100 fw-bold py-2 shadow-sm">
                                     Proceed to Checkout
                                 </Button>
+                                {
+                                    checkoutSuccess &&
+                                    navigate('/')
+
+                                }
                             </Card.Body>
                         </Card>
                     </Col>
+
+                    <Col lg={8}>
+                        <AddressListComponent refreshTrigger={true} enableDelete={false} addressSelectionHandler={addressSelectionHandler} />
+                    </Col>
+
+                    {address.id && <Col lg={4}>
+                        <AddressCardComponent enableDelete={false} addr={address} />
+                    </Col>
+                    }
+
+
+
+
+
+
+
                 </Row>
-            )}
+
+
+
+            </>
+            }
         </Container>
     );
 }
