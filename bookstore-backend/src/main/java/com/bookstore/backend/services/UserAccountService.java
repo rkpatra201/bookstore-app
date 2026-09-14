@@ -71,7 +71,7 @@ public class UserAccountService {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 
-    public LoginResponse login(LoginRequest loginRequest) {
+    public LoginResult login(LoginRequest loginRequest) {
         log.info("Login attempt for email: {}", loginRequest.getEmail());
 
         validateLoginRequest(loginRequest);
@@ -98,13 +98,20 @@ public class UserAccountService {
         );
         log.info("Login successful for email: {} with userId: {}", loginRequest.getEmail(), userAccount.getUserId());
 
-        return LoginResponse.builder()
-                .token(token)
+        LoginResponse loginResponse = LoginResponse.builder()
                 .userId(userAccount.getUserId())
                 .email(userAccount.getEmail())
                 .firstName(userAccount.getFirstName())
                 .lastName(userAccount.getLastName())
                 .build();
+
+        return new LoginResult(token, loginResponse);
+    }
+
+    @lombok.Value
+    public static class LoginResult {
+        String token;
+        LoginResponse loginResponse;
     }
 
     private void validateLoginRequest(LoginRequest loginRequest) {

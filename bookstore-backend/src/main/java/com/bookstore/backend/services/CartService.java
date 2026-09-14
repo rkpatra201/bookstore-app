@@ -5,6 +5,8 @@ import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.LineItemRequest;
 import com.bookstore.backend.dtos.LineItemResponse;
 import com.bookstore.backend.entities.CartLineItemEntity;
+import com.bookstore.backend.enums.CartError;
+import com.bookstore.backend.exceptions.CartException;
 import com.bookstore.backend.mappers.LineItemRequestMapper;
 import com.bookstore.backend.repositories.CartRepository;
 import com.bookstore.backend.strategies.CartUpdateStrategy;
@@ -44,18 +46,15 @@ public class CartService {
     }
 
     private List<LineItemResponse> getCartItemsByUserId(String userId) {
-        // 1. Fetch all raw cart records from the repository
         List<CartLineItemEntity> cartEntities = cartRepository.findByUserId(userId);
 
-        // 2. Map and enrich each entry with product metadata
         return cartEntities.stream()
                 .map(entity -> {
-                    // Fetch book details to populate dynamic information like title and unitPrice
                     Book book = bookService.getBookById(entity.getItemId());
 
                     double unitPrice = book.getPrice();
                     int quantity = entity.getQuantity();
-                    double subTotal = unitPrice * quantity; // Compute dynamically
+                    double subTotal = unitPrice * quantity;
 
                     LineItemResponse response = LineItemResponse.builder()
                             .subTotal(subTotal)
@@ -88,20 +87,20 @@ public class CartService {
 
     private void validateCartRequest(LineItemRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Cart request cannot be null");
+            throw new CartException(CartError.INVALID_REQUEST);
         }
 
         if (request.getItemId() == null || request.getItemId() <= 0) {
-            throw new IllegalArgumentException("Invalid item ID");
+            throw new CartException(CartError.INVALID_ITEM_ID);
         }
 
         if (request.getQuantity() <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero");
+            throw new CartException(CartError.INVALID_QUANTITY);
         }
 
         Book book = this.bookService.getBookById(request.getItemId());
         if (book.getStockQty() < request.getQuantity()) {
-            throw new IllegalArgumentException("Insufficient stock available for item: " + book.getTitle() + ". Available: " + book.getStockQty() + ", Requested: " + request.getQuantity());
+            throw new CartException(CartError.INSUFFICIENT_STOCK, book.getTitle(), book.getStockQty(), request.getQuantity());
         }
     }
 
@@ -112,7 +111,7 @@ public class CartService {
 
         if (!deleted) {
             log.warn("Failed to remove item from cart - User: {}, ItemId: {} - Item not found", userId, itemId);
-            throw new IllegalArgumentException("Item not found in your cart");
+            throw new CartException(CartError.ITEM_NOT_FOUND);
         }
 
         log.info("Successfully removed item from cart - User: {}, ItemId: {}", userId, itemId);
@@ -125,7 +124,7 @@ public class CartService {
 
         if (delta == 0) {
             log.warn("Cart update failed - User: {}, ItemId: {} - Quantity cannot be zero", userId, lineItemRequest.getItemId());
-            throw new IllegalArgumentException("Quantity cannot be zero");
+            throw new CartException(CartError.QUANTITY_CANNOT_BE_ZERO);
         }
 
         CartUpdateStrategy strategy = null;
@@ -139,7 +138,7 @@ public class CartService {
 
         if (strategy == null) {
             log.error("Cart update failed - User: {}, ItemId: {} - Unsupported quantity change operation", userId, lineItemRequest.getItemId());
-            throw new IllegalArgumentException("Unsupported quantity change operation");
+            throw new CartException(CartError.UNSUPPORTED_OPERATION);
         }
 
         try {
@@ -161,7 +160,7 @@ public class CartService {
      */
     public void clearCart(String userId) {
         if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("User ID cannot be null or empty");
+            throw new CartException(CartError.INVALID_USER_ID);
         }
 
         log.info("Clearing cart for user: {}", userId);

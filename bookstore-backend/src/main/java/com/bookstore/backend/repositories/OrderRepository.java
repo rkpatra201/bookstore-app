@@ -2,8 +2,10 @@ package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderError;
 import com.bookstore.backend.enums.OrderStatus;
 import com.bookstore.backend.enums.PaymentMethod;
+import com.bookstore.backend.exceptions.OrderException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -47,7 +49,7 @@ public class OrderRepository {
         // FIX: Extract specifically the "id" key from the multi-key map list returned by H2
         List<Map<String, Object>> keyList = keyHolder.getKeyList();
         if (keyList == null || keyList.isEmpty()) {
-            throw new IllegalStateException("Failed to retrieve generated order ID");
+            throw new OrderException(OrderError.FAILED_TO_RETRIEVE_ORDER_ID);
         }
 
         // Get the first map row and target the "id" or "ID" key safely
@@ -55,7 +57,7 @@ public class OrderRepository {
         Number idKey = (Number) keys.getOrDefault("id", keys.get("ID"));
 
         if (idKey == null) {
-            throw new IllegalStateException("Primary key 'id' not found in generated keys map");
+            throw new OrderException(OrderError.PRIMARY_KEY_NOT_FOUND);
         }
 
         return idKey.longValue();
@@ -96,7 +98,6 @@ public class OrderRepository {
                 WHERE id = ?
                 """;
 
-        // 1. Fetch the master order row mapping
         List<OrderEntity> orders = jdbcTemplate.query(orderSql, (rs, rowNum) -> {
             OrderEntity order = new OrderEntity();
             order.setId(rs.getLong("id"));
@@ -116,10 +117,9 @@ public class OrderRepository {
 
         OrderEntity masterOrder = orders.get(0);
 
-        // 2. Fetch all matching line items attached to this specific order ID
         String lineItemsSql = """
                 SELECT id, order_id, item_id, title, unit_price, quantity, sub_total
-                FROM order_line_items 
+                FROM order_line_items
                 WHERE order_id = ?
                 ORDER BY id ASC
                 """;
@@ -136,7 +136,6 @@ public class OrderRepository {
             return item;
         }, orderId);
 
-        // 3. Embed the child details collection into the master entity object safely
         masterOrder.setLineItems(items);
 
         return masterOrder;

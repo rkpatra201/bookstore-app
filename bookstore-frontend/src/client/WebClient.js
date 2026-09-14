@@ -3,11 +3,7 @@ import { ADDRESS_URL, CART_URL, CATALOG_URL, ORDER_URL, USER_ACCOUNT_URL } from 
 // Global 401 handler - dispatch custom event when unauthorized
 function handle401Response(response) {
     if (response.status === 401) {
-        // Clear authentication data
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
-
-        // Dispatch custom event to trigger login dialog
+        // Cookie cleared by server, just notify UI
         window.dispatchEvent(new CustomEvent('unauthorized', {
             detail: { message: 'Session expired. Please login again.' }
         }));
@@ -15,9 +11,12 @@ function handle401Response(response) {
     return response;
 }
 
-// Wrapper for fetch that includes 401 handling
+// Wrapper for fetch that includes 401 handling and credentials
 function fetchWithAuth(url, options = {}) {
-    return fetch(url, options)
+    return fetch(url, {
+        ...options,
+        credentials: 'include'  // Include cookies in all requests
+    })
         .then(response => {
             handle401Response(response);
             return response;
@@ -144,16 +143,11 @@ export function loginInvocation(credentials) {
     });
 }
 
-// Helper function to get auth headers
+// Helper function to get headers (cookie-based auth, no Authorization header needed)
 export function getAuthHeaders() {
-    const token = localStorage.getItem('authToken');
-    const headers = {
+    return {
         'Content-Type': 'application/json'
     };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    return headers;
 }
 
 // Order API methods

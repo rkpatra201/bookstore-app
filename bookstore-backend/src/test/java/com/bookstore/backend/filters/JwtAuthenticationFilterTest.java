@@ -3,7 +3,9 @@ package com.bookstore.backend.filters;
 import com.bookstore.backend.dtos.UserAccount;
 import com.bookstore.backend.services.JwtService;
 import com.bookstore.backend.services.UserAccountService;
+import com.bookstore.backend.services.UserContextService;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,9 @@ class JwtAuthenticationFilterTest {
     private UserAccountService userAccountService;
 
     @Mock
+    private UserContextService userContextService;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -41,7 +46,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(jwtService, userAccountService);
+        filter = new JwtAuthenticationFilter(jwtService, userAccountService, userContextService);
     }
 
     @Test
@@ -95,12 +100,13 @@ class JwtAuthenticationFilterTest {
         when(request.getRequestURI()).thenReturn("/api/orders");
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setStatus(401);
         verify(filterChain, never()).doFilter(request, response);
-        assertThat(responseWriter.toString()).contains("Missing or invalid Authorization header");
+        assertThat(responseWriter.toString()).contains("Missing or invalid authentication token");
     }
 
     @Test
@@ -110,12 +116,13 @@ class JwtAuthenticationFilterTest {
         when(request.getRequestURI()).thenReturn("/api/orders");
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("Authorization")).thenReturn("InvalidHeader");
+        when(request.getCookies()).thenReturn(null);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setStatus(401);
         verify(filterChain, never()).doFilter(request, response);
-        assertThat(responseWriter.toString()).contains("Missing or invalid Authorization header");
+        assertThat(responseWriter.toString()).contains("Missing or invalid authentication token");
     }
 
     @Test
@@ -177,5 +184,161 @@ class JwtAuthenticationFilterTest {
         verify(response).setStatus(401);
         verify(filterChain, never()).doFilter(request, response);
         assertThat(responseWriter.toString()).contains("Authentication failed");
+    }
+
+    @Test
+    void shouldAuthenticateSuccessfullyWithCookie() throws Exception {
+        // Arrange
+        String token = "cookie-token-123";
+        String userId = "user-456";
+
+        Cookie authCookie = new Cookie("x-auth-cookie", token);
+        when(request.getRequestURI()).thenReturn("/api/cart");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn(null); // No Authorization header
+        when(request.getCookies()).thenReturn(new Cookie[]{authCookie});
+        when(jwtService.validateToken(token)).thenReturn(true);
+        when(jwtService.extractUserId(token)).thenReturn(userId);
+        when(userAccountService.findByUserId(userId)).thenReturn(UserAccount.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .firstName("Jane")
+                .lastName("Smith")
+                .build());
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(filterChain).doFilter(request, response);
+        verify(request).setAttribute("userId", userId);
+        verify(response, never()).setStatus(401);
+        verify(userContextService).setUserContext(userId);
+    }
+
+    @Test
+    void shouldPreferAuthorizationHeaderOverCookie() throws Exception {
+        // Arrange
+        String headerToken = "header-token";
+        String cookieToken = "cookie-token";
+        String userId = "user-789";
+
+        Cookie authCookie = new Cookie("x-auth-cookie", cookieToken);
+        when(request.getRequestURI()).thenReturn("/api/orders");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + headerToken);
+        when(jwtService.validateToken(headerToken)).thenReturn(true);
+        when(jwtService.extractUserId(headerToken)).thenReturn(userId);
+        when(userAccountService.findByUserId(userId)).thenReturn(UserAccount.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .firstName("John")
+                .lastName("Doe")
+                .build());
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(jwtService).validateToken(headerToken);
+        verify(jwtService, never()).validateToken(cookieToken);
+        verify(filterChain).doFilter(request, response);
+        // Verify cookies were never checked because header took precedence
+        verify(request, never()).getCookies();
+    }
+
+    @Test
+    void shouldReturn401WhenCookieTokenIsInvalid() throws Exception {
+        // Arrange
+        StringWriter responseWriter = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+        String token = "invalid-cookie-token";
+
+        Cookie authCookie = new Cookie("x-auth-cookie", token);
+        when(request.getRequestURI()).thenReturn("/api/orders");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{authCookie});
+        when(jwtService.validateToken(token)).thenReturn(false);
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(response).setStatus(401);
+        verify(filterChain, never()).doFilter(request, response);
+        assertThat(responseWriter.toString()).contains("Invalid or expired token");
+    }
+
+    @Test
+    void shouldReturn401WhenNoCookiesPresent() throws Exception {
+        // Arrange
+        StringWriter responseWriter = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+        when(request.getRequestURI()).thenReturn("/api/orders");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(response).setStatus(401);
+        verify(filterChain, never()).doFilter(request, response);
+        assertThat(responseWriter.toString()).contains("Missing or invalid authentication token");
+    }
+
+    @Test
+    void shouldReturn401WhenAuthCookieNotPresent() throws Exception {
+        // Arrange
+        StringWriter responseWriter = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+
+        Cookie otherCookie = new Cookie("other-cookie", "some-value");
+        when(request.getRequestURI()).thenReturn("/api/orders");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{otherCookie});
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(response).setStatus(401);
+        verify(filterChain, never()).doFilter(request, response);
+        assertThat(responseWriter.toString()).contains("Missing or invalid authentication token");
+    }
+
+    @Test
+    void shouldHandleMultipleCookiesAndFindAuthCookie() throws Exception {
+        // Arrange
+        String token = "valid-cookie-token";
+        String userId = "user-999";
+
+        Cookie sessionCookie = new Cookie("JSESSIONID", "session-value");
+        Cookie authCookie = new Cookie("x-auth-cookie", token);
+        Cookie otherCookie = new Cookie("preferences", "theme=dark");
+
+        when(request.getRequestURI()).thenReturn("/api/cart");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{sessionCookie, authCookie, otherCookie});
+        when(jwtService.validateToken(token)).thenReturn(true);
+        when(jwtService.extractUserId(token)).thenReturn(userId);
+        when(userAccountService.findByUserId(userId)).thenReturn(UserAccount.builder()
+                .userId(userId)
+                .email("user@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build());
+
+        // Act
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        verify(filterChain).doFilter(request, response);
+        verify(request).setAttribute("userId", userId);
+        verify(response, never()).setStatus(401);
     }
 }

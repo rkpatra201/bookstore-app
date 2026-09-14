@@ -1,52 +1,62 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { BASE_URL } from '../constants/AppConstants';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [authToken, setAuthToken] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load token from localStorage on mount
+  // Check auth status on mount by calling /me endpoint
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    if (token) {
-      setAuthToken(token);
-      setIsAuthenticated(true);
-      if (userData) {
-        setUser(JSON.parse(userData));
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/api/user-accounts/me`, {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.data);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+    checkAuthStatus();
   }, []);
 
-  const login = (token, userData) => {
-    localStorage.setItem('authToken', token);
-    if (userData) {
-      localStorage.setItem('userData', JSON.stringify(userData));
-      setUser(userData);
-    }
-    setAuthToken(token);
+  const login = (userData) => {
+    setUser(userData);
     setIsAuthenticated(true);
   };
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    setAuthToken(null);
+  const logout = async () => {
+    try {
+      await fetch(`${BASE_URL}/api/user-accounts/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
     setUser(null);
     setIsAuthenticated(false);
   };
 
   const getAuthToken = () => {
-    return authToken || localStorage.getItem('authToken');
+    // Token is in httpOnly cookie, not accessible to JavaScript
+    return null;
   };
 
   return (
     <AuthContext.Provider value={{
-      authToken,
       user,
       isAuthenticated,
+      isLoading,
       login,
       logout,
       getAuthToken

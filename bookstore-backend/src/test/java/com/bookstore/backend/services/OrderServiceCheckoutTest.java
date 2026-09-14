@@ -3,11 +3,15 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderError;
 import com.bookstore.backend.enums.OrderStatus;
 import com.bookstore.backend.enums.PaymentMethod;
 import com.bookstore.backend.exceptions.ItemNotFoundException;
+import com.bookstore.backend.exceptions.OrderException;
+import com.bookstore.backend.repositories.BookRepository;
 import com.bookstore.backend.repositories.OrderRepository;
 import org.junit.jupiter.api.Assertions;
+import com.bookstore.backend.exceptions.OrderException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,6 +38,8 @@ class OrderServiceCheckoutTest {
     private AddressService addressService;
     @Mock
     private OrderRepository orderRepository;
+    @Mock
+    private BookRepository bookRepository;
     @InjectMocks
     private OrderService orderService;
 
@@ -50,8 +56,8 @@ class OrderServiceCheckoutTest {
         CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.COD);
 
         // Act & Assert: Check fail-fast exception behavior
-        IllegalStateException exception = Assertions.assertThrows(
-                IllegalStateException.class,
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
                 () -> orderService.checkout(USER_ID, request)
         );
 
@@ -75,8 +81,8 @@ class OrderServiceCheckoutTest {
         CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.UPI);
 
         // Act & Assert
-        IllegalStateException exception = Assertions.assertThrows(
-                IllegalStateException.class,
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
                 () -> orderService.checkout(USER_ID, request)
         );
 
@@ -117,8 +123,8 @@ class OrderServiceCheckoutTest {
         CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, null);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
                 () -> orderService.checkout(USER_ID, request)
         );
 
@@ -162,7 +168,11 @@ class OrderServiceCheckoutTest {
                 .build();
         Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
 
-        // Arrange: 3. Mock database persistence actions & cleanup operations
+        // Arrange: 3. Mock stock reduction for both items
+        Mockito.when(bookRepository.reduceStock(101, 2)).thenReturn(true);
+        Mockito.when(bookRepository.reduceStock(102, 1)).thenReturn(true);
+
+        // Arrange: 4. Mock database persistence actions & cleanup operations
         Mockito.when(orderRepository.saveMasterOrder(Mockito.any(OrderEntity.class))).thenReturn(EXPECTED_ORDER_ID);
         Mockito.doNothing().when(orderRepository).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), Mockito.anyList());
         Mockito.doNothing().when(cartService).clearCart(USER_ID);
@@ -237,7 +247,10 @@ class OrderServiceCheckoutTest {
                 .build();
         Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
 
-        // Arrange: 3. Mock repository operations
+        // Arrange: 3. Mock stock reduction
+        Mockito.when(bookRepository.reduceStock(101, 1)).thenReturn(true);
+
+        // Arrange: 4. Mock repository operations
         Mockito.when(orderRepository.saveMasterOrder(Mockito.any(OrderEntity.class))).thenReturn(EXPECTED_ORDER_ID);
         Mockito.doNothing().when(orderRepository).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), Mockito.anyList());
         Mockito.doNothing().when(cartService).clearCart(USER_ID);
@@ -338,8 +351,8 @@ class OrderServiceCheckoutTest {
     @Test
     void getOrderHistory_shouldThrowIllegalArgumentException_whenUserIdIsEmpty() {
         // Act & Assert: Input contract validation check
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
                 () -> orderService.getOrderHistory("")
         );
 
@@ -410,6 +423,180 @@ class OrderServiceCheckoutTest {
         Assertions.assertEquals(PaymentMethod.DC, actualSecond.getPaymentMethod());
 
         Mockito.verify(orderRepository, Mockito.times(1)).findAllOrdersByUserId(USER_ID);
+    }
+
+    @Test
+    void checkout_shouldReduceStockQuantityCorrectly_whenCheckoutSucceeds() {
+        // Arrange: 1. Mock cart with multiple items
+        LineItemResponse cartItem1 = LineItemResponse.builder()
+                .itemId(101)
+                .title("Spring Framework In Action")
+                .unitPrice(45.0)
+                .quantity(2)
+                .subTotal(90.0)
+                .build();
+
+        LineItemResponse cartItem2 = LineItemResponse.builder()
+                .itemId(102)
+                .title("Clean Code Mastery")
+                .unitPrice(40.0)
+                .quantity(3)
+                .subTotal(120.0)
+                .build();
+
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(List.of(cartItem1, cartItem2))
+                .totalCartPrice(210.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
+        // Arrange: 2. Mock address
+        CustomerAddress mockAddress = CustomerAddress.builder()
+                .recipientName("John Doe")
+                .addressLine1("123 Main St")
+                .city("Bengaluru")
+                .state("Karnataka")
+                .postalCode("560016")
+                .country("India")
+                .build();
+        Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
+
+        // Arrange: 3. Mock successful stock reduction for both items
+        Mockito.when(bookRepository.reduceStock(101, 2)).thenReturn(true);
+        Mockito.when(bookRepository.reduceStock(102, 3)).thenReturn(true);
+
+        // Arrange: 4. Mock repository operations
+        Mockito.when(orderRepository.saveMasterOrder(Mockito.any(OrderEntity.class))).thenReturn(EXPECTED_ORDER_ID);
+        Mockito.doNothing().when(orderRepository).saveOrderLineItems(Mockito.eq(EXPECTED_ORDER_ID), Mockito.anyList());
+        Mockito.doNothing().when(cartService).clearCart(USER_ID);
+
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.COD);
+
+        // Act
+        OrderResponse response = orderService.checkout(USER_ID, request);
+
+        // Assert: Verify stock was reduced for each item with correct quantities
+        Mockito.verify(bookRepository, Mockito.times(1)).reduceStock(101, 2);
+        Mockito.verify(bookRepository, Mockito.times(1)).reduceStock(102, 3);
+
+        // Assert: Verify order was created successfully
+        Assertions.assertNotNull(response);
+        Assertions.assertEquals(EXPECTED_ORDER_ID, response.getOrderId());
+        Assertions.assertEquals(210.0, response.getTotalAmount());
+    }
+
+    @Test
+    void checkout_shouldThrowOrderException_whenStockQuantityIsInsufficient() {
+        // Arrange: 1. Mock cart with item that has insufficient stock
+        LineItemResponse cartItem = LineItemResponse.builder()
+                .itemId(101)
+                .title("Popular Book - Out of Stock")
+                .unitPrice(50.0)
+                .quantity(5)
+                .subTotal(250.0)
+                .build();
+
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(List.of(cartItem))
+                .totalCartPrice(250.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
+        // Arrange: 2. Mock address
+        CustomerAddress mockAddress = CustomerAddress.builder()
+                .recipientName("Jane Doe")
+                .addressLine1("456 Oak St")
+                .city("Mumbai")
+                .state("Maharashtra")
+                .postalCode("400001")
+                .country("India")
+                .build();
+        Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
+
+        // Arrange: 3. Mock stock reduction failure (insufficient stock)
+        Mockito.when(bookRepository.reduceStock(101, 5)).thenReturn(false);
+
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.UPI);
+
+        // Act & Assert: Verify OrderException is thrown with correct error
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
+                () -> orderService.checkout(USER_ID, request)
+        );
+
+        // Assert: Verify exception details
+        Assertions.assertEquals(OrderError.STOCK_UPDATE_FAILED, exception.getError());
+        Assertions.assertEquals(409, exception.getHttpCode());
+        Assertions.assertEquals("Failed to update stock quantity. Item may be out of stock", exception.getMessage());
+
+        // Assert: Verify order was NOT created
+        Mockito.verify(orderRepository, Mockito.never()).saveMasterOrder(Mockito.any());
+        Mockito.verify(orderRepository, Mockito.never()).saveOrderLineItems(Mockito.anyLong(), Mockito.anyList());
+
+        // Assert: Verify cart was NOT cleared (transaction should rollback)
+        Mockito.verify(cartService, Mockito.never()).clearCart(USER_ID);
+    }
+
+    @Test
+    void checkout_shouldNotClearCart_whenStockReductionFails() {
+        // Arrange: 1. Mock cart with two items, second one will fail stock reduction
+        LineItemResponse cartItem1 = LineItemResponse.builder()
+                .itemId(101)
+                .title("First Book")
+                .unitPrice(45.0)
+                .quantity(2)
+                .subTotal(90.0)
+                .build();
+
+        LineItemResponse cartItem2 = LineItemResponse.builder()
+                .itemId(102)
+                .title("Second Book - Low Stock")
+                .unitPrice(40.0)
+                .quantity(10)
+                .subTotal(400.0)
+                .build();
+
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(List.of(cartItem1, cartItem2))
+                .totalCartPrice(490.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
+        // Arrange: 2. Mock address
+        CustomerAddress mockAddress = CustomerAddress.builder()
+                .recipientName("Test User")
+                .addressLine1("789 Test St")
+                .city("Delhi")
+                .state("Delhi")
+                .postalCode("110001")
+                .country("India")
+                .build();
+        Mockito.when(addressService.getAddressById(ADDRESS_ID, USER_ID)).thenReturn(mockAddress);
+
+        // Arrange: 3. Mock first stock reduction succeeds, second fails
+        Mockito.when(bookRepository.reduceStock(101, 2)).thenReturn(true);
+        Mockito.when(bookRepository.reduceStock(102, 10)).thenReturn(false);
+
+        CheckoutRequest request = new CheckoutRequest(ADDRESS_ID, PaymentMethod.DC);
+
+        // Act & Assert: Verify OrderException is thrown
+        OrderException exception = Assertions.assertThrows(
+                OrderException.class,
+                () -> orderService.checkout(USER_ID, request)
+        );
+
+        // Assert: Verify cart is NOT cleared when transaction fails
+        Mockito.verify(cartService, Mockito.never()).clearCart(USER_ID);
+
+        // Assert: Verify cart retains line items (by not calling clearCart)
+        // In a real scenario with database transactions, the first stock reduction would also rollback
+        Assertions.assertNotNull(mockCart.getLineItems());
+        Assertions.assertEquals(2, mockCart.getLineItems().size());
+        Assertions.assertEquals(101, mockCart.getLineItems().get(0).getItemId());
+        Assertions.assertEquals(102, mockCart.getLineItems().get(1).getItemId());
     }
 
 }

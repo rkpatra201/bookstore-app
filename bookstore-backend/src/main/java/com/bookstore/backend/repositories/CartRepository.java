@@ -1,6 +1,8 @@
 package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.CartLineItemEntity;
+import com.bookstore.backend.enums.CartError;
+import com.bookstore.backend.exceptions.CartException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -31,22 +33,52 @@ public class CartRepository {
     /**
      * Saves a line item to the cart.
      * If the user already has this item, it adds the new quantity to the existing quantity.
+     * Uses MERGE syntax which is compatible with both H2 and MySQL 8.0+.
      */
     public void saveOrUpdate(CartLineItemEntity lineItem) {
+        // Use MERGE statement which is supported by both H2 and MySQL 8.0+
         String sql = """
-                INSERT INTO cart_line_items (user_id, item_id, quantity)
+                MERGE INTO cart_line_items (user_id, item_id, quantity)
+                KEY (user_id, item_id)
                 VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
                 """;
 
-        // Note: For H2 databases during testing, use this SQL variant instead:
-        // ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = cart_line_items.quantity + EXCLUDED.quantity
+        // First, try to get existing quantity
+        String selectSql = """
+                SELECT quantity FROM cart_line_items
+                WHERE user_id = ? AND item_id = ?
+                """;
 
-        jdbcTemplate.update(sql,
-                lineItem.getUserId(),
-                lineItem.getItemId(),
-                lineItem.getQuantity()
-        );
+        try {
+            Integer existingQuantity = jdbcTemplate.queryForObject(selectSql,
+                    Integer.class,
+                    lineItem.getUserId(),
+                    lineItem.getItemId());
+
+            // Update: add to existing quantity
+            String updateSql = """
+                    UPDATE cart_line_items
+                    SET quantity = quantity + ?
+                    WHERE user_id = ? AND item_id = ?
+                    """;
+
+            jdbcTemplate.update(updateSql,
+                    lineItem.getQuantity(),
+                    lineItem.getUserId(),
+                    lineItem.getItemId());
+
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            // Insert: item doesn't exist yet
+            String insertSql = """
+                    INSERT INTO cart_line_items (user_id, item_id, quantity)
+                    VALUES (?, ?, ?)
+                    """;
+
+            jdbcTemplate.update(insertSql,
+                    lineItem.getUserId(),
+                    lineItem.getItemId(),
+                    lineItem.getQuantity());
+        }
     }
 
     public List<CartLineItemEntity> findByUserId(String userId) {
@@ -67,22 +99,20 @@ public class CartRepository {
     }
 
     public void reduceItemCount(String userId, int itemId, int quantityToReduce) {
-        // 1. Update the row by lowering the count directly in the database
         String updateSql = """
-                UPDATE cart_line_items 
-                SET quantity = quantity - ? 
+                UPDATE cart_line_items
+                SET quantity = quantity - ?
                 WHERE user_id = ? AND item_id = ?
                 """;
 
         int rowsAffected = jdbcTemplate.update(updateSql, quantityToReduce, userId, itemId);
 
         if (rowsAffected == 0) {
-            throw new IllegalArgumentException("Item not found in your cart");
+            throw new CartException(CartError.ITEM_NOT_FOUND);
         }
 
-        // 2. Cleanup: If the quantity dropped to 0 or negative, remove the row completely
         String deleteSql = """
-                DELETE FROM cart_line_items 
+                DELETE FROM cart_line_items
                 WHERE user_id = ? AND item_id = ? AND quantity <= 0
                 """;
 

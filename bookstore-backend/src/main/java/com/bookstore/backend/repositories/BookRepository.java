@@ -23,9 +23,8 @@ public class BookRepository {
     }
 
     public List<BookEntity> findAllBooksWithAuthors() {
-        // 1. First focused query: Fetch all master book records cleanly
         String bookSql = """
-                SELECT id, title, price, stock_qty 
+                SELECT id, title, price, stock_qty
                 FROM book
                 """;
 
@@ -36,7 +35,7 @@ public class BookRepository {
             book.setPrice(rs.getFloat("price"));
             book.setStockQty(rs.getInt("stock_qty"));
             book.setAuthors(new ArrayList<>());
-            book.setImages(new ArrayList<>());   // Prepare the image list placeholder
+            book.setImages(new ArrayList<>());
             return book;
         });
 
@@ -44,7 +43,6 @@ public class BookRepository {
             return books;
         }
 
-        // 2. Second focused query: Fetch and group all authors
         String authorSql = """
                 SELECT ba.book_id, a.id AS author_id, a.author_name, a.author_code
                 FROM book_author ba
@@ -65,7 +63,6 @@ public class BookRepository {
             return map;
         });
 
-        // 3. Third focused query: Fetch and group all images attached to books
         String imageSql = """
                 SELECT bi.book_id, bi.is_primary, i.id AS image_id, i.url, i.alt_text
                 FROM book_images bi
@@ -80,21 +77,17 @@ public class BookRepository {
                         .id(rs.getLong("image_id"))
                         .url(rs.getString("url"))
                         .altText(rs.getString("alt_text"))
-                        .isPrimary(rs.getBoolean("is_primary")) // Map it here
+                        .isPrimary(rs.getBoolean("is_primary"))
                         .build();
                 map.computeIfAbsent(bookId, k -> new ArrayList<>()).add(image);
             }
             return map;
         });
 
-
-        // 4. Stitch data blocks together seamlessly in a single in-memory loop
         for (BookEntity book : books) {
-            // Bind Authors
             if (authorsMap != null && authorsMap.containsKey(book.getId())) {
                 book.setAuthors(authorsMap.get(book.getId()));
             }
-            // Bind Images
             if (imagesMap != null && imagesMap.containsKey(book.getId())) {
                 book.setImages(imagesMap.get(book.getId()));
             }
@@ -105,7 +98,6 @@ public class BookRepository {
 
 
     public Optional<BookEntity> findById(int id) {
-        // 1. Fetch the base book fields
         String bookSql = "SELECT id, title, price, stock_qty FROM book WHERE id = ?";
 
         try {
@@ -118,9 +110,8 @@ public class BookRepository {
                 return b;
             }, id);
 
-            // 2. Query and attach the associated authors
             String authorSql = """
-                    SELECT a.id, a.author_name, a.author_code 
+                    SELECT a.id, a.author_name, a.author_code
                     FROM author a
                     JOIN book_author ba ON a.id = ba.author_id
                     WHERE ba.book_id = ?
@@ -156,6 +147,26 @@ public class BookRepository {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * Reduces the stock quantity for a book by the specified amount.
+     * Uses a WHERE clause to ensure stock doesn't go below zero, preventing overselling.
+     *
+     * @param bookId The ID of the book
+     * @param quantity The quantity to reduce
+     * @return true if stock was successfully reduced, false if insufficient stock
+     */
+    public boolean reduceStock(int bookId, int quantity) {
+        String sql = """
+                UPDATE book
+                SET stock_qty = stock_qty - ?
+                WHERE id = ?
+                AND stock_qty >= ?
+                """;
+
+        int rowsAffected = jdbcTemplate.update(sql, quantity, bookId, quantity);
+        return rowsAffected > 0;
     }
 
 }

@@ -1,6 +1,7 @@
 package com.bookstore.backend.repositories;
 
 import com.bookstore.backend.entities.CartLineItemEntity;
+import com.bookstore.backend.exceptions.CartException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,13 +26,110 @@ class CartRepositoryTest {
     private CartRepository cartRepository;
 
     @Test
-    void saveOrUpdate() {
-        CartLineItemEntity cartLineItemEntity = new CartLineItemEntity();
-        cartLineItemEntity.setItemId(1);
-        cartLineItemEntity.setQuantity(10);
-        cartLineItemEntity.setUserId("user-abc");
-        cartRepository.saveOrUpdate(cartLineItemEntity);
-        cartRepository.saveOrUpdate(cartLineItemEntity);
+    void saveOrUpdate_shouldInsertNewItem_whenItemDoesNotExist() {
+        // Arrange
+        CartLineItemEntity newItem = new CartLineItemEntity();
+        newItem.setItemId(101);
+        newItem.setQuantity(5);
+        newItem.setUserId("user-new-item");
+
+        // Act
+        cartRepository.saveOrUpdate(newItem);
+
+        // Assert
+        List<CartLineItemEntity> cart = cartRepository.findByUserId("user-new-item");
+        Assertions.assertEquals(1, cart.size());
+        Assertions.assertEquals(101, cart.get(0).getItemId());
+        Assertions.assertEquals(5, cart.get(0).getQuantity());
+    }
+
+    @Test
+    void saveOrUpdate_shouldIncrementQuantity_whenItemAlreadyExists() {
+        // Arrange: First, add an item with quantity 10
+        CartLineItemEntity firstAdd = new CartLineItemEntity();
+        firstAdd.setItemId(1);
+        firstAdd.setQuantity(10);
+        firstAdd.setUserId("user-abc");
+        cartRepository.saveOrUpdate(firstAdd);
+
+        // Act: Add the same item again with quantity 5
+        CartLineItemEntity secondAdd = new CartLineItemEntity();
+        secondAdd.setItemId(1);
+        secondAdd.setQuantity(5);
+        secondAdd.setUserId("user-abc");
+        cartRepository.saveOrUpdate(secondAdd);
+
+        // Assert: Quantity should be 10 + 5 = 15
+        List<CartLineItemEntity> cart = cartRepository.findByUserId("user-abc");
+        Assertions.assertEquals(1, cart.size());
+        Assertions.assertEquals(1, cart.get(0).getItemId());
+        Assertions.assertEquals(15, cart.get(0).getQuantity());
+    }
+
+    @Test
+    void saveOrUpdate_shouldHandleMultipleRepeatedAdds_cumulativelyIncreasingQuantity() {
+        // Regression test: Simulate a user clicking "Add to Cart" multiple times
+        String userId = "user-repeat-clicker";
+        int itemId = 42;
+
+        // Arrange & Act: Simulate 5 separate "Add to Cart" clicks, each adding quantity 1
+        for (int i = 0; i < 5; i++) {
+            CartLineItemEntity addClick = new CartLineItemEntity();
+            addClick.setUserId(userId);
+            addClick.setItemId(itemId);
+            addClick.setQuantity(1);
+            cartRepository.saveOrUpdate(addClick);
+        }
+
+        // Assert: After 5 clicks of quantity 1, total should be 5
+        List<CartLineItemEntity> cart = cartRepository.findByUserId(userId);
+        Assertions.assertEquals(1, cart.size());
+        Assertions.assertEquals(itemId, cart.get(0).getItemId());
+        Assertions.assertEquals(5, cart.get(0).getQuantity());
+    }
+
+    @Test
+    void saveOrUpdate_shouldMaintainSeparateQuantities_forDifferentItems() {
+        // Arrange: User adds two different items, then adds more of the first item
+        String userId = "user-multi-item";
+
+        CartLineItemEntity item1FirstAdd = new CartLineItemEntity();
+        item1FirstAdd.setUserId(userId);
+        item1FirstAdd.setItemId(100);
+        item1FirstAdd.setQuantity(3);
+
+        CartLineItemEntity item2FirstAdd = new CartLineItemEntity();
+        item2FirstAdd.setUserId(userId);
+        item2FirstAdd.setItemId(200);
+        item2FirstAdd.setQuantity(2);
+
+        CartLineItemEntity item1SecondAdd = new CartLineItemEntity();
+        item1SecondAdd.setUserId(userId);
+        item1SecondAdd.setItemId(100);
+        item1SecondAdd.setQuantity(4);
+
+        // Act
+        cartRepository.saveOrUpdate(item1FirstAdd);
+        cartRepository.saveOrUpdate(item2FirstAdd);
+        cartRepository.saveOrUpdate(item1SecondAdd);
+
+        // Assert
+        List<CartLineItemEntity> cart = cartRepository.findByUserId(userId);
+        Assertions.assertEquals(2, cart.size());
+
+        // Verify item 100 has cumulative quantity (3 + 4 = 7)
+        CartLineItemEntity actualItem1 = cart.stream()
+                .filter(item -> item.getItemId() == 100)
+                .findFirst()
+                .orElseThrow();
+        Assertions.assertEquals(7, actualItem1.getQuantity());
+
+        // Verify item 200 remains unchanged at 2
+        CartLineItemEntity actualItem2 = cart.stream()
+                .filter(item -> item.getItemId() == 200)
+                .findFirst()
+                .orElseThrow();
+        Assertions.assertEquals(2, actualItem2.getQuantity());
     }
 
     @Test
@@ -250,10 +348,10 @@ class CartRepositoryTest {
     }
 
     @Test
-    void reduceItemCount_shouldThrowIllegalArgumentException_whenItemDoesNotExist() {
+    void reduceItemCount_shouldThrowCartException_whenItemDoesNotExist() {
         // Act & Assert: Attempting to reduce an item not present in the cart throws validation error
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartRepository.reduceItemCount(USER_ID, 999, 1)
         );
 

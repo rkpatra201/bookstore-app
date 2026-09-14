@@ -17,14 +17,14 @@ export function Cart() {
     const [serverMessage, setServerMessage] = useState('');
     const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
-    // Hook provider to sync context navbar values later if required
-    const { cartCount, incrementCart, decrementCart, setCart } = useCart();
+    // Hook provider to sync context navbar values
+    const { setCart } = useCart();
     const { isAuthenticated } = useAuth();
 
     const navigate = useNavigate();
 
 
-    // 2. Fetch authoritative server-side cart state on mount (runs exactly once due to [])
+    // 2. Fetch authoritative server-side cart state on mount (runs exactly once)
     useEffect(() => {
         // Only fetch cart if authenticated
         if (!isAuthenticated) {
@@ -44,6 +44,9 @@ export function Cart() {
                 // Unwraps the standard uniform DataResponse shell container mapping parameter (.data)
                 if (payload.success && payload.data) {
                     setCartData(payload.data);
+                    // Sync cart count with navbar
+                    const totalItems = payload.data.lineItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                    setCart(totalItems);
                 } else {
                     setCartData(payload);
                 }
@@ -53,29 +56,74 @@ export function Cart() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, [cartCount, isAuthenticated]);
+    }, [isAuthenticated, setCart]);
 
 
-    // Placeholders for update execution actions (as requested, to be wired next)
-    const handleIncrement = (item) => {
+    // Cart mutation handlers that reconcile response data directly into state
+    const handleIncrement = async (item) => {
         console.log("Trigger increment for itemId:", item);
-        addToCartInvocation(item)
-            .then(res => res.json())
-            .then(json => incrementCart(item))
+        try {
+            const res = await addToCartInvocation(item);
+            if (!res.ok) {
+                throw new Error('Failed to add item to cart');
+            }
+            const payload = await res.json();
+
+            // Reconcile response data directly into cart state
+            if (payload.success && payload.data) {
+                setCartData(payload.data);
+                // Update navbar cart count
+                const totalItems = payload.data.lineItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                setCart(totalItems);
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            setError(error.message);
+        }
     };
 
-    const handleDecrement = (item) => {
+    const handleDecrement = async (item) => {
         console.log("Trigger decrement for itemId:", item);
-        reduceFromCartInvocation(item)
-            .then(res => res.json())
-            .then(json => decrementCart(item))
+        try {
+            const res = await reduceFromCartInvocation(item);
+            if (!res.ok) {
+                throw new Error('Failed to reduce item quantity');
+            }
+            const payload = await res.json();
+
+            // Reconcile response data directly into cart state
+            if (payload.success && payload.data) {
+                setCartData(payload.data);
+                // Update navbar cart count
+                const totalItems = payload.data.lineItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                setCart(totalItems);
+            }
+        } catch (error) {
+            console.error('Error reducing cart quantity:', error);
+            setError(error.message);
+        }
     };
 
-    const handleDelete = (item) => {
+    const handleDelete = async (item) => {
         console.log("Trigger removal delete for itemId:", item);
-        deleteLineItemInvocation(item.itemId)
-            .then(res => res.json())
-            .then(data => setCart(cartCount - item.quantity))
+        try {
+            const res = await deleteLineItemInvocation(item.itemId);
+            if (!res.ok) {
+                throw new Error('Failed to delete item from cart');
+            }
+            const payload = await res.json();
+
+            // Reconcile response data directly into cart state
+            if (payload.success && payload.data) {
+                setCartData(payload.data);
+                // Update navbar cart count
+                const totalItems = payload.data.lineItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                setCart(totalItems);
+            }
+        } catch (error) {
+            console.error('Error deleting cart item:', error);
+            setError(error.message);
+        }
     };
 
     const addressSelectionHandler = (addr) => {

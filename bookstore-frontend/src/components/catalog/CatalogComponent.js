@@ -33,10 +33,10 @@ export function Catalog() {
 
 function BookGrid({ books }) {
     const navigate = useNavigate();
-    const {incrementCart} = useCart();
+    const {setCart} = useCart();
     const {isAuthenticated} = useAuth();
 
-    const addItemToCart = (item)=>{
+    const addItemToCart = async (item) => {
         // Check authentication before making API call
         if (!isAuthenticated) {
             // Dispatch unauthorized event to show login dialog
@@ -47,18 +47,22 @@ function BookGrid({ books }) {
         }
 
         // User is authenticated, proceed with API call
-        addToCartInvocation(item)
-        .then(res => {
+        try {
+            const res = await addToCartInvocation(item);
             if (!res.ok) {
                 throw new Error(`Failed to add to cart: ${res.status}`);
             }
-            return res.json();
-        })
-        .then(json => incrementCart(item))
-        .catch(error => {
+            const payload = await res.json();
+
+            // Reconcile response data directly - update cart count in navbar
+            if (payload.success && payload.data) {
+                const totalItems = payload.data.lineItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                setCart(totalItems);
+            }
+        } catch (error) {
             console.error('Error adding to cart:', error);
             // Don't throw - let the 401 handler show login dialog
-        });
+        }
     }
 
     return (

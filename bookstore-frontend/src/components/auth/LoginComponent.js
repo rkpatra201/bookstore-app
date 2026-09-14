@@ -65,19 +65,16 @@ export function LoginComponent({ onSuccess, onClose }) {
       const response = await loginInvocation(formData);
 
       if (response.ok) {
-        const authToken = response.headers.get('authorization');
         const data = await response.json();
 
-        if (authToken) {
-          login(authToken, data.data);
-          if (onSuccess) {
-            onSuccess();
-          }
-          if (onClose) {
-            onClose();
-          }
-        } else {
-          setServerError('Authentication token not received');
+        // Cookie is automatically set by browser, just update context
+        login(data.data);
+
+        if (onSuccess) {
+          onSuccess();
+        }
+        if (onClose) {
+          onClose();
         }
       } else {
         const errorData = await response.json();

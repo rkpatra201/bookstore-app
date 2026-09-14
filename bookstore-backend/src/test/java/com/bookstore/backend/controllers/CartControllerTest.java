@@ -40,22 +40,32 @@ class CartControllerTest {
         Mockito.when(mockContext.getUserId()).thenReturn(USER_ID);
         Mockito.when(userContextService.getUserContext()).thenReturn(mockContext);
 
+        // Mock the cart returned after adding item
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(Collections.emptyList())
+                .totalCartPrice(100.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
         // Act
-        ResponseEntity<DataResponse<Void>> responseEntity = cartController.addToCart(request);
+        ResponseEntity<DataResponse<Cart>> responseEntity = cartController.addToCart(request);
 
         // Assert
         Assertions.assertNotNull(responseEntity);
         Assertions.assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
 
-        DataResponse<Void> body = responseEntity.getBody();
+        DataResponse<Cart> body = responseEntity.getBody();
         Assertions.assertNotNull(body);
-        Assertions.assertTrue(body.isSuccess()); // Assuming getSuccess() or isSuccess() exists
+        Assertions.assertTrue(body.isSuccess());
         Assertions.assertEquals("Item successfully added to your cart", body.getMessage());
-        Assertions.assertNull(body.getData());
+        Assertions.assertNotNull(body.getData());
+        Assertions.assertEquals(USER_ID, body.getData().getUserId());
 
         // Verify downstream service layer interactions
         Mockito.verify(userContextService, Mockito.times(1)).getUserContext();
         Mockito.verify(cartService, Mockito.times(1)).addItemToCart(USER_ID, request);
+        Mockito.verify(cartService, Mockito.times(1)).getCart(USER_ID);
     }
 
     @Test
@@ -68,22 +78,32 @@ class CartControllerTest {
         // Mock the void service method call behavior explicitly to do nothing
         Mockito.doNothing().when(cartService).removeItemFromCart(USER_ID, ITEM_ID);
 
+        // Mock the cart returned after removing item
+        Cart mockCart = Cart.builder()
+                .userId(USER_ID)
+                .lineItems(Collections.emptyList())
+                .totalCartPrice(0.0)
+                .build();
+        Mockito.when(cartService.getCart(USER_ID)).thenReturn(mockCart);
+
         // Act: Directly execute controller endpoint function
-        ResponseEntity<DataResponse<Void>> responseEntity = cartController.removeItemFromCart(ITEM_ID);
+        ResponseEntity<DataResponse<Cart>> responseEntity = cartController.removeItemFromCart(ITEM_ID);
 
         // Assert: Validate responses match structural schemas
         Assertions.assertNotNull(responseEntity);
         Assertions.assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
 
-        DataResponse<Void> body = responseEntity.getBody();
+        DataResponse<Cart> body = responseEntity.getBody();
         Assertions.assertNotNull(body);
         Assertions.assertTrue(body.isSuccess());
         Assertions.assertEquals("Item successfully removed from your cart", body.getMessage());
-        Assertions.assertNull(body.getData());
+        Assertions.assertNotNull(body.getData());
+        Assertions.assertEquals(USER_ID, body.getData().getUserId());
 
         // Verify downstream layer communication occurred correctly
         Mockito.verify(userContextService, Mockito.times(1)).getUserContext();
         Mockito.verify(cartService, Mockito.times(1)).removeItemFromCart(USER_ID, ITEM_ID);
+        Mockito.verify(cartService, Mockito.times(1)).getCart(USER_ID);
     }
 
     @Test

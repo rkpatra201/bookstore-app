@@ -3,10 +3,13 @@ package com.bookstore.backend.services;
 import com.bookstore.backend.dtos.*;
 import com.bookstore.backend.entities.OrderEntity;
 import com.bookstore.backend.entities.OrderLineItemEntity;
+import com.bookstore.backend.enums.OrderError;
 import com.bookstore.backend.enums.OrderStatus;
 import com.bookstore.backend.enums.PaymentMethod;
 import com.bookstore.backend.exceptions.ItemNotFoundException;
+import com.bookstore.backend.exceptions.OrderException;
 import com.bookstore.backend.mappers.OrderMapper;
+import com.bookstore.backend.repositories.BookRepository;
 import com.bookstore.backend.repositories.OrderRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,11 +24,13 @@ public class OrderService {
     private final CartService cartService;
     private final AddressService addressService;
     private final OrderRepository orderRepository;
+    private final BookRepository bookRepository;
 
-    public OrderService(CartService cartService, AddressService addressService, OrderRepository orderRepository) {
+    public OrderService(CartService cartService, AddressService addressService, OrderRepository orderRepository, BookRepository bookRepository) {
         this.cartService = cartService;
         this.addressService = addressService;
         this.orderRepository = orderRepository;
+        this.bookRepository = bookRepository;
     }
 
     /**
@@ -38,28 +43,35 @@ public class OrderService {
             userId, request.getAddressId(), request.getPaymentMethod());
 
         try {
-            // 1. Fetch the authoritative server-side cart snapshot
             Cart cart = cartService.getCart(userId);
             if (cart.getLineItems() == null || cart.getLineItems().isEmpty()) {
                 log.warn("Checkout failed - User: {} - Empty cart", userId);
-                throw new IllegalStateException("Cannot checkout an empty shopping cart");
+                throw new OrderException(OrderError.EMPTY_CART);
             }
 
             log.debug("Checkout - User: {} - Cart contains {} items, Total: ${}", userId, cart.getItemCount(), String.format("%.2f", cart.getTotalCartPrice()));
 
-            // 2. Fetch the target delivery address and verify security ownership bounds
             CustomerAddress address = addressService.getAddressById(request.getAddressId(), userId);
 
-            // 3. Validate payment method is provided
             if (request.getPaymentMethod() == null) {
                 log.warn("Checkout failed - User: {} - Payment method not provided", userId);
-                throw new IllegalArgumentException("Payment method is required for checkout");
+                throw new OrderException(OrderError.PAYMENT_METHOD_REQUIRED);
             }
 
-            // 4. Freeze the address into a flat text snapshot format
             String addressSnapshot = formatAddressSnapshot(address);
 
-            // 5. Build and persist the master order record
+            log.debug("Reducing stock for {} items", cart.getLineItems().size());
+            for (LineItemResponse lineItem : cart.getLineItems()) {
+                boolean stockReduced = bookRepository.reduceStock(lineItem.getItemId(), lineItem.getQuantity());
+                if (!stockReduced) {
+                    log.warn("Insufficient stock - User: {}, BookId: {}, Requested: {}",
+                        userId, lineItem.getItemId(), lineItem.getQuantity());
+                    throw new OrderException(OrderError.STOCK_UPDATE_FAILED);
+                }
+                log.debug("Stock reduced successfully - BookId: {}, Quantity: {}",
+                    lineItem.getItemId(), lineItem.getQuantity());
+            }
+
             OrderEntity masterOrder = OrderEntity.builder()
                     .userId(userId)
                     .shippingAddressSnapshot(addressSnapshot)
@@ -72,17 +84,14 @@ public class OrderService {
             log.info("Order created - OrderId: {}, User: {}, PaymentMethod: {}, Status: {}, Total: ${}",
                 orderId, userId, request.getPaymentMethod(), masterOrder.getOrderStatus(), String.format("%.2f", cart.getTotalCartPrice()));
 
-            // 5. Mapping of lineItems to lineItemEntities
             List<OrderLineItemEntity> lineItemEntities = OrderMapper.INSTANCE
                     .toLineItemEntityList(cart.getLineItems(), orderId);
 
             orderRepository.saveOrderLineItems(orderId, lineItemEntities);
             log.debug("Saved {} line items for order: {}", lineItemEntities.size(), orderId);
 
-            // 6. Clear the shopping cart since the transaction is successfully recorded
             cartService.clearCart(userId);
 
-            // 7. Return the summarized response payload
             log.info("Checkout completed successfully - OrderId: {}, User: {}, PaymentMethod: {}, Status: {}, Total: ${}",
                 orderId, userId, request.getPaymentMethod(), masterOrder.getOrderStatus(), String.format("%.2f", cart.getTotalCartPrice()));
             return new OrderResponse(orderId, masterOrder.getOrderStatus(), request.getPaymentMethod(), cart.getTotalCartPrice());
@@ -128,10 +137,8 @@ public class OrderService {
     public OrderDetailsResponse getOrderById(Long orderId, String userId) {
         log.debug("Fetching order details - OrderId: {}, User: {}", orderId, userId);
 
-        // 1. Retrieve the authoritative master-detail model from the repository
         OrderEntity orderEntity = orderRepository.findOrderById(orderId);
 
-        // 2. Security validation: Fail if the order doesn't exist or belongs to someone else
         if (orderEntity == null || !orderEntity.getUserId().equals(userId)) {
             log.warn("Order access denied or not found - OrderId: {}, User: {}", orderId, userId);
             throw new ItemNotFoundException("Order not found or access denied");
@@ -139,7 +146,6 @@ public class OrderService {
 
         log.info("Order details retrieved - OrderId: {}, User: {}, Status: {}", orderId, userId, orderEntity.getOrderStatus());
 
-        // 3. Use the plain Java MapStruct mapper instance to clean up the builder loops
         return OrderMapper.INSTANCE.toDetailsResponse(orderEntity);
     }
 
@@ -149,7 +155,7 @@ public class OrderService {
      */
     public List<OrderSummaryResponse> getOrderHistory(String userId) {
         if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("User ID cannot be null or empty");
+            throw new OrderException(OrderError.INVALID_USER_ID);
         }
 
         log.debug("Fetching order history for user: {}", userId);

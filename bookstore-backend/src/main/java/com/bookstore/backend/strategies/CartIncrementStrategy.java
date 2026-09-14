@@ -3,6 +3,8 @@ package com.bookstore.backend.strategies;
 import com.bookstore.backend.dtos.Book;
 import com.bookstore.backend.dtos.LineItemRequest;
 import com.bookstore.backend.entities.CartLineItemEntity;
+import com.bookstore.backend.enums.CartError;
+import com.bookstore.backend.exceptions.CartException;
 import com.bookstore.backend.mappers.LineItemRequestMapper;
 import com.bookstore.backend.repositories.CartRepository;
 import com.bookstore.backend.services.BookService;
@@ -29,7 +31,6 @@ public class CartIncrementStrategy implements CartUpdateStrategy {
 
     @Override
     public void update(String userId, LineItemRequest request) {
-        // 1. Validate stock availability
         Book book = bookService.getBookById(request.getItemId());
         List<CartLineItemEntity> existingItems = cartRepository.findByUserId(userId);
 
@@ -40,10 +41,9 @@ public class CartIncrementStrategy implements CartUpdateStrategy {
                 .orElse(0);
 
         if (book.getStockQty() < (currentQtyInCart + request.getQuantity())) {
-            throw new IllegalArgumentException("Required stock is not available for item: " + request.getItemId());
+            throw new CartException(CartError.INSUFFICIENT_STOCK, book.getTitle(), book.getStockQty(), currentQtyInCart + request.getQuantity());
         }
 
-        // 2. Perform Save/Update mapping
         CartLineItemEntity entity = lineItemRequestMapper.toEntity(request, userId);
         cartRepository.saveOrUpdate(entity);
     }

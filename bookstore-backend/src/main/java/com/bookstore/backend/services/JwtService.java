@@ -23,7 +23,7 @@ public class JwtService {
     private final long expirationTime;
 
     public JwtService(
-            @Value("${jwt.secret:mySecretKeyForJwtTokenGenerationAndValidation1234567890}") String secret,
+            @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration:3600}") long expirationTime) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationTime = expirationTime;

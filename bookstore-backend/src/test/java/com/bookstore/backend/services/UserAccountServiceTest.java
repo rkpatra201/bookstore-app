@@ -393,14 +393,15 @@ class UserAccountServiceTest {
         when(jwtService.generateToken("user-123", "test@example.com", "John", "Doe"))
                 .thenReturn("jwt-token-mock");
 
-        LoginResponse response = userAccountService.login(loginRequest);
+        UserAccountService.LoginResult result = userAccountService.login(loginRequest);
 
-        assertThat(response).isNotNull();
-        assertThat(response.getToken()).isEqualTo("jwt-token-mock");
-        assertThat(response.getUserId()).isEqualTo("user-123");
-        assertThat(response.getEmail()).isEqualTo("test@example.com");
-        assertThat(response.getFirstName()).isEqualTo("John");
-        assertThat(response.getLastName()).isEqualTo("Doe");
+        assertThat(result).isNotNull();
+        assertThat(result.getToken()).isEqualTo("jwt-token-mock");
+        assertThat(result.getLoginResponse()).isNotNull();
+        assertThat(result.getLoginResponse().getUserId()).isEqualTo("user-123");
+        assertThat(result.getLoginResponse().getEmail()).isEqualTo("test@example.com");
+        assertThat(result.getLoginResponse().getFirstName()).isEqualTo("John");
+        assertThat(result.getLoginResponse().getLastName()).isEqualTo("Doe");
 
         verify(userAccountRepository).findByEmail("test@example.com");
         verify(jwtService).generateToken("user-123", "test@example.com", "John", "Doe");

@@ -5,6 +5,7 @@ import com.bookstore.backend.dtos.Cart;
 import com.bookstore.backend.dtos.LineItemRequest;
 import com.bookstore.backend.dtos.LineItemResponse;
 import com.bookstore.backend.entities.CartLineItemEntity;
+import com.bookstore.backend.exceptions.CartException;
 import com.bookstore.backend.repositories.CartRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -36,8 +37,8 @@ class CartServiceTest {
         LineItemRequest request = new LineItemRequest(ITEM_ID, 0);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartService.addItemToCart(USER_ID, request)
         );
 
@@ -53,8 +54,8 @@ class CartServiceTest {
         LineItemRequest request = new LineItemRequest(ITEM_ID, -5);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartService.addItemToCart(USER_ID, request)
         );
 
@@ -79,8 +80,8 @@ class CartServiceTest {
         Mockito.when(bookService.getBookById(ITEM_ID)).thenReturn(bookMock);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartService.addItemToCart(USER_ID, request)
         );
 
@@ -222,13 +223,13 @@ class CartServiceTest {
     }
 
     @Test
-    void removeItemFromCart_shouldThrowIllegalArgumentException_whenItemDoesNotExist() {
+    void removeItemFromCart_shouldThrowCartException_whenItemDoesNotExist() {
         // Arrange: Mock the repository to report deletion failure (returns false)
         Mockito.when(cartRepository.deleteItem(USER_ID, ITEM_ID)).thenReturn(false);
 
         // Act & Assert: Verify that the expected exception is thrown
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartService.removeItemFromCart(USER_ID, ITEM_ID)
         );
 
@@ -241,10 +242,10 @@ class CartServiceTest {
 
 
     @Test
-    void clearCart_shouldThrowIllegalArgumentException_whenUserIdIsEmpty() {
+    void clearCart_shouldThrowCartException_whenUserIdIsEmpty() {
         // Act & Assert (Blank context safety validation check)
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        CartException exception = Assertions.assertThrows(
+                CartException.class,
                 () -> cartService.clearCart("")
         );
 

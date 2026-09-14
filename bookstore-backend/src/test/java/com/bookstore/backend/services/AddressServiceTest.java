@@ -2,6 +2,7 @@ package com.bookstore.backend.services;
 
 import com.bookstore.backend.dtos.CustomerAddress;
 import com.bookstore.backend.entities.CustomerAddressEntity;
+import com.bookstore.backend.exceptions.AddressException;
 import com.bookstore.backend.repositories.AddressRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -90,8 +91,8 @@ class AddressServiceTest {
         Mockito.when(addressRepository.findByIdAndUserId(ADDRESS_ID, USER_ID)).thenReturn(null);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        AddressException exception = Assertions.assertThrows(
+                AddressException.class,
                 () -> addressService.getAddressById(ADDRESS_ID, USER_ID)
         );
 
@@ -123,8 +124,8 @@ class AddressServiceTest {
         Mockito.when(addressRepository.updateByIdAndUserId(Mockito.any(CustomerAddressEntity.class))).thenReturn(false);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        AddressException exception = Assertions.assertThrows(
+                AddressException.class,
                 () -> addressService.updateAddress(USER_ID, ADDRESS_ID, updateDto)
         );
 
@@ -147,8 +148,8 @@ class AddressServiceTest {
         Mockito.when(addressRepository.deleteByIdAndUserId(ADDRESS_ID, USER_ID)).thenReturn(false);
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
+        AddressException exception = Assertions.assertThrows(
+                AddressException.class,
                 () -> addressService.deleteAddress(ADDRESS_ID, USER_ID)
         );
 

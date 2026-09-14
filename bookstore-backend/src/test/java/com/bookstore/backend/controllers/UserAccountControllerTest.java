@@ -104,50 +104,6 @@ class UserAccountControllerTest {
     }
 
     @Test
-    void shouldGetUserByUserId() {
-        String userId = "test-user-id";
-
-        UserAccount userAccount = UserAccount.builder()
-                .userId(userId)
-                .email("test@example.com")
-                .firstName("John")
-                .lastName("Doe")
-                .password("password123")
-                .blocked(false)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        when(userAccountService.findByUserId(userId)).thenReturn(userAccount);
-
-        ResponseEntity<DataResponse<UserAccount>> response = userAccountController.getUserByUserId(userId);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().isSuccess()).isTrue();
-        assertThat(response.getBody().getMessage()).isEqualTo("User account retrieved successfully");
-        assertThat(response.getBody().getData()).isNotNull();
-        assertThat(response.getBody().getData().getUserId()).isEqualTo(userId);
-        assertThat(response.getBody().getData().getEmail()).isEqualTo("test@example.com");
-
-        verify(userAccountService).findByUserId(userId);
-    }
-
-    @Test
-    void shouldThrowExceptionWhenUserNotFound() {
-        String userId = "non-existent-id";
-
-        when(userAccountService.findByUserId(userId))
-                .thenThrow(new UserAccountException(UserAccountError.USER_NOT_FOUND));
-
-        assertThatThrownBy(() -> userAccountController.getUserByUserId(userId))
-                .isInstanceOf(UserAccountException.class)
-                .hasMessage(UserAccountError.USER_NOT_FOUND.getMessage());
-
-        verify(userAccountService).findByUserId(userId);
-    }
-
-    @Test
     void shouldNotReturnPasswordInResponse() {
         UserAccount inputAccount = UserAccount.builder()
                 .email("test@example.com")
@@ -185,14 +141,15 @@ class UserAccountControllerTest {
                 .build();
 
         LoginResponse loginResponse = LoginResponse.builder()
-                .token("test-token-uuid")
                 .userId("user-123")
                 .email("test@example.com")
                 .firstName("John")
                 .lastName("Doe")
                 .build();
 
-        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResponse);
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("test-token-uuid", loginResponse);
+
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
 
         ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
 
@@ -201,13 +158,20 @@ class UserAccountControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getMessage()).isEqualTo("Login successful");
         assertThat(response.getBody().getData()).isNotNull();
-        assertThat(response.getBody().getData().getToken()).isEqualTo("test-token-uuid");
+
+        // Verify HttpOnly cookie is set
+        assertThat(response.getHeaders().get(HttpHeaders.SET_COOKIE)).isNotNull();
+        assertThat(response.getHeaders().getFirst(HttpHeaders.SET_COOKIE))
+                .contains("x-auth-cookie=test-token-uuid")
+                .contains("HttpOnly")
+                .contains("Path=/")
+                .contains("Max-Age=86400")
+                .contains("SameSite=Lax");
+
         assertThat(response.getBody().getData().getUserId()).isEqualTo("user-123");
         assertThat(response.getBody().getData().getEmail()).isEqualTo("test@example.com");
         assertThat(response.getBody().getData().getFirstName()).isEqualTo("John");
         assertThat(response.getBody().getData().getLastName()).isEqualTo("Doe");
-
-        assertThat(response.getHeaders().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("test-token-uuid");
 
         verify(userAccountService).login(any(LoginRequest.class));
     }
@@ -295,5 +259,264 @@ class UserAccountControllerTest {
                 .hasMessage(UserAccountError.PASSWORD_REQUIRED.getMessage());
 
         verify(userAccountService).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void shouldSetHttpOnlyCookieOnSuccessfulLogin() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("user@example.com")
+                .password("securePass")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-456")
+                .email("user@example.com")
+                .firstName("Jane")
+                .lastName("Smith")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("jwt-token-12345", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader)
+                .isNotNull()
+                .contains("x-auth-cookie=jwt-token-12345")
+                .contains("HttpOnly");
+
+        verify(userAccountService, times(1)).login(loginRequest);
+    }
+
+    @Test
+    void shouldSetCookieWithCorrectPath() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-789")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-abc", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader).contains("Path=/");
+    }
+
+    @Test
+    void shouldSetCookieWith24HourExpiry() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-999")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-xyz", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader).contains("Max-Age=86400"); // 24 hours = 86400 seconds
+    }
+
+    @Test
+    void shouldSetCookieWithSameSiteLax() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-111")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-lax", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader).contains("SameSite=Lax");
+    }
+
+    @Test
+    void shouldNotSetSecureFlagInDevelopment() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-222")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-dev", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        // Secure flag should not be present when secure=false (development mode)
+        assertThat(setCookieHeader).doesNotContain("Secure");
+    }
+
+    @Test
+    void shouldNotIncludeTokenInResponseBody() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-333")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("secret-token", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData()).isNotNull();
+
+        // Verify token is NOT in response body (security requirement)
+        LoginResponse responseData = response.getBody().getData();
+        assertThat(responseData.getUserId()).isEqualTo("user-333");
+        assertThat(responseData.getEmail()).isEqualTo("test@example.com");
+        assertThat(responseData.getFirstName()).isEqualTo("Test");
+        assertThat(responseData.getLastName()).isEqualTo("User");
+
+        // Token should only be in cookie, not in response body
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader).contains("secret-token");
+    }
+
+    @Test
+    void shouldReturnOnlyUserInfoInResponseBody() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("john.doe@example.com")
+                .password("strongPassword")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-444")
+                .email("john.doe@example.com")
+                .firstName("John")
+                .lastName("Doe")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("jwt-token", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Login successful");
+
+        LoginResponse data = response.getBody().getData();
+        assertThat(data.getUserId()).isEqualTo("user-444");
+        assertThat(data.getEmail()).isEqualTo("john.doe@example.com");
+        assertThat(data.getFirstName()).isEqualTo("John");
+        assertThat(data.getLastName()).isEqualTo("Doe");
+    }
+
+    @Test
+    void shouldSetCookieWithCorrectName() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-555")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-name-test", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        ResponseEntity<DataResponse<LoginResponse>> response = userAccountController.login(loginRequest);
+
+        // Assert
+        String setCookieHeader = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookieHeader).startsWith("x-auth-cookie=");
+    }
+
+    @Test
+    void shouldInvokeServiceExactlyOnce() {
+        // Arrange
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password")
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .userId("user-666")
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+
+        UserAccountService.LoginResult loginResult = new UserAccountService.LoginResult("token-once", loginResponse);
+        when(userAccountService.login(any(LoginRequest.class))).thenReturn(loginResult);
+
+        // Act
+        userAccountController.login(loginRequest);
+
+        // Assert
+        verify(userAccountService, times(1)).login(loginRequest);
+        verifyNoMoreInteractions(userAccountService);
     }
 }

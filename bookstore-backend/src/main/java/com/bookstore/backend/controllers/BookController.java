@@ -18,6 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST controller for managing bookstore catalog operations.
+ * <p>
+ * Provides public endpoints for browsing books and viewing book details.
+ * These endpoints do not require authentication and are accessible to all users.
+ * </p>
+ */
 @RestController
 @RequestMapping("api/books")
 @Tag(name = "Book Management", description = "APIs for managing the bookstore inventory")
@@ -30,7 +37,11 @@ public class BookController {
     }
 
     /**
-     * Retrieves all books available in the system.
+     * Retrieves all books available in the bookstore catalog.
+     * <p>
+     * Returns the complete list of books with details including title, author,
+     * price, and stock quantity. This is a public endpoint accessible without authentication.
+     * </p>
      *
      * @return ResponseEntity containing a list of all books and HTTP 200 OK
      */
@@ -54,10 +65,16 @@ public class BookController {
     }
 
     /**
-     * Retrieves a specific book using its unique ID.
+     * Retrieves a specific book by its unique identifier.
+     * <p>
+     * Fetches detailed information about a single book including title, author,
+     * description, price, and stock availability. This is a public endpoint
+     * accessible without authentication.
+     * </p>
      *
-     * @param id The unique identifier of the book
-     * @return ResponseEntity containing the book details if found, or 404 Not Found
+     * @param id the unique identifier of the book to retrieve
+     * @return ResponseEntity containing the book details and HTTP 200 OK
+     * @throws com.bookstore.backend.exceptions.BookException if book not found
      */
     @GetMapping("/{id}")
     @Operation(summary = "Get book by ID", description = "Fetches details of a single book using its unique identification number")
