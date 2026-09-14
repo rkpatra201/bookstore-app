@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Spinner, Alert, Badge, Row, Col, Modal } from 'react-bootstrap';
-import { ORDER_URL } from '../../constants/AppConstants';
+import { orderInvocation } from '../../client/WebClient';
+import { useAuth } from '../../providers/AuthProvider';
 
 export function OrderHistory() {
     const [orders, setOrders] = useState([]);
@@ -9,10 +10,17 @@ export function OrderHistory() {
     const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const { isAuthenticated } = useAuth();
 
     // Fetch order list on component mount
     useEffect(() => {
-        fetch(ORDER_URL)
+        // Only fetch orders if authenticated
+        if (!isAuthenticated) {
+            setLoading(false);
+            return;
+        }
+
+        orderInvocation().list()
             .then((res) => {
                 if (!res.ok) {
                     throw new Error('Failed to retrieve order history');
@@ -31,7 +39,7 @@ export function OrderHistory() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, []);
+    }, [isAuthenticated]);
 
     // Fetch order details when View button is clicked
     const handleViewOrder = async (orderId) => {
@@ -40,7 +48,7 @@ export function OrderHistory() {
         setSelectedOrder(null);
 
         try {
-            const response = await fetch(`${ORDER_URL}/${orderId}`);
+            const response = await orderInvocation().getById(orderId);
             if (!response.ok) {
                 throw new Error('Failed to retrieve order details');
             }
@@ -101,7 +109,12 @@ export function OrderHistory() {
         <Container className="my-5">
             <h2 className="fw-bold mb-4">Order History</h2>
 
-            {orders.length === 0 ? (
+            {!isAuthenticated ? (
+                <Alert variant="warning" className="text-center py-5">
+                    <h4>Please login to view your orders</h4>
+                    <p className="text-muted mb-0">You need to be authenticated to access your order history.</p>
+                </Alert>
+            ) : orders.length === 0 ? (
                 <Alert variant="info" className="text-center py-5">
                     <h4>No orders found</h4>
                     <p className="text-muted mb-0">You haven't placed any orders yet.</p>

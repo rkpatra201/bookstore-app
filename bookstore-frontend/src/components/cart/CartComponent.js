@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Container, Row, Col, Card, Spinner, Alert, Form } from 'react-bootstrap';
-import { CART_URL } from '../../constants/AppConstants';
 import { PAYMENT_METHODS } from '../../constants/PaymentMethods';
 import { useCart } from '../../providers/CartProvider';
-import { addToCartInvocation, deleteLineItemInvocation, orderInvocation, reduceFromCartInvocation } from '../../client/WebClient';
+import { useAuth } from '../../providers/AuthProvider';
+import { addToCartInvocation, deleteLineItemInvocation, orderInvocation, reduceFromCartInvocation, loadCartDataInvocation } from '../../client/WebClient';
 import { AddressCardComponent, AddressComponent, AddressListComponent } from '../me/AddressComponent';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,13 +19,21 @@ export function Cart() {
 
     // Hook provider to sync context navbar values later if required
     const { cartCount, incrementCart, decrementCart, setCart } = useCart();
+    const { isAuthenticated } = useAuth();
 
     const navigate = useNavigate();
 
 
     // 2. Fetch authoritative server-side cart state on mount (runs exactly once due to [])
     useEffect(() => {
-        fetch(CART_URL) // Adjust mapping port configuration if needed
+        // Only fetch cart if authenticated
+        if (!isAuthenticated) {
+            setLoading(false);
+            setCartData({ lineItems: [], totalCartPrice: 0 });
+            return;
+        }
+
+        loadCartDataInvocation()
             .then((res) => {
                 if (!res.ok) {
                     throw new Error('Failed to retrieve cart items from server');
@@ -45,7 +53,7 @@ export function Cart() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, [cartCount]);
+    }, [cartCount, isAuthenticated]);
 
 
     // Placeholders for update execution actions (as requested, to be wired next)
@@ -135,7 +143,12 @@ export function Cart() {
         <Container className="my-5">
             <h2 className="fw-bold mb-4 text-start">🛒 Shopping Cart</h2>
 
-            {lineItems.length === 0 ? (
+            {!isAuthenticated ? (
+                <Alert variant="warning" className="text-center py-5 shadow-sm">
+                    <h4>Please login to view your cart</h4>
+                    <p className="text-muted mb-0">You need to be authenticated to access your shopping cart.</p>
+                </Alert>
+            ) : lineItems.length === 0 ? (
                 <Alert variant="info" className="text-center py-5 shadow-sm">
                     <h4>Your cart is empty</h4>
                     <p className="text-muted mb-0">Head back to the catalog to choose your favorite titles!</p>

@@ -27,9 +27,12 @@ public class CorsConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         // 4. Define allowed request request header properties
-        config.setAllowedHeaders(List.of("Authorization", "Cache-Control", "Content-Type"));
+        config.setAllowedHeaders(List.of("*"));
 
-        // 5. Register configuration rules globally across all api route match filters
+        // 5. Expose response headers so frontend can read them
+        config.setExposedHeaders(List.of("*"));
+
+        // 6. Register configuration rules globally across all api route match filters
         source.registerCorsConfiguration("/**", config);
 
         return new CorsFilter(source);

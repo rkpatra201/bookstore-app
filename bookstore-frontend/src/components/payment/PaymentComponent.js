@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Row, Col, Button, Spinner, Alert, Table } from 'react-bootstrap';
-import { ORDER_URL } from '../../constants/AppConstants';
+import { orderInvocation, processPaymentInvocation } from '../../client/WebClient';
 
 export function Payment() {
     const { orderId } = useParams();
@@ -21,7 +21,7 @@ export function Payment() {
             return;
         }
 
-        fetch(`${ORDER_URL}/${orderId}`)
+        orderInvocation().getById(orderId)
             .then((res) => {
                 if (!res.ok) {
                     throw new Error('Failed to retrieve order summary');
@@ -55,12 +55,7 @@ export function Payment() {
             }, 2000);
 
             /* Uncomment when payment API is ready:
-            const response = await fetch(`${ORDER_URL}/${orderId}/payment`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await processPaymentInvocation(orderId);
 
             const payload = await response.json();
 

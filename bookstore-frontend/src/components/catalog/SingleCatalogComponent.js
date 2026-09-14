@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { useCart } from '../../providers/CartProvider';
+import { useAuth } from '../../providers/AuthProvider';
 import { addToCartInvocation } from '../../client/WebClient';
 
 export function CatalogItemDetails() {
@@ -10,11 +11,31 @@ export function CatalogItemDetails() {
 
     // Connect to the global cloud action function triggers
     const { incrementCart } = useCart();
+    const { isAuthenticated } = useAuth();
 
     const addItemToCart = (item) => {
+        // Check authentication before making API call
+        if (!isAuthenticated) {
+            // Dispatch unauthorized event to show login dialog
+            window.dispatchEvent(new CustomEvent('unauthorized', {
+                detail: { message: 'Please login to add items to cart.' }
+            }));
+            return;
+        }
+
+        // User is authenticated, proceed with API call
         addToCartInvocation(item)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Failed to add to cart: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(json => incrementCart(item))
+            .catch(error => {
+                console.error('Error adding to cart:', error);
+                // Don't throw - let the 401 handler show login dialog
+            });
     }
 
     const book = location.state?.selectedBook;

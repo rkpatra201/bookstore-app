@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react"
-import { CATALOG_URL, HEALTH_URL } from "../../constants/AppConstants";
-
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import { Container, Image } from "react-bootstrap";
 import { Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from "../../providers/CartProvider";
-import { addToCartInvocation } from "../../client/WebClient";
+import { useAuth } from "../../providers/AuthProvider";
+import { addToCartInvocation, catalogInvocation } from "../../client/WebClient";
 export function Catalog() {
 
     const [books, setBooks] = useState([]);
 
     function loadData() {
-        fetch(CATALOG_URL)
+        catalogInvocation().list()
             .then(res => res.json())
             .then(json => {
                 console.log(json);
@@ -35,11 +34,31 @@ export function Catalog() {
 function BookGrid({ books }) {
     const navigate = useNavigate();
     const {incrementCart} = useCart();
+    const {isAuthenticated} = useAuth();
 
     const addItemToCart = (item)=>{
+        // Check authentication before making API call
+        if (!isAuthenticated) {
+            // Dispatch unauthorized event to show login dialog
+            window.dispatchEvent(new CustomEvent('unauthorized', {
+                detail: { message: 'Please login to add items to cart.' }
+            }));
+            return;
+        }
+
+        // User is authenticated, proceed with API call
         addToCartInvocation(item)
-        .then(res=>res.json())
-        .then(json=>incrementCart(item))
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`Failed to add to cart: ${res.status}`);
+            }
+            return res.json();
+        })
+        .then(json => incrementCart(item))
+        .catch(error => {
+            console.error('Error adding to cart:', error);
+            // Don't throw - let the 401 handler show login dialog
+        });
     }
 
     return (

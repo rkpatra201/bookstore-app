@@ -10,6 +10,7 @@ import { Cart } from './components/cart/CartComponent';
 import { NotFound } from './components/navigation/NotFound';
 import { OrderHistory } from './components/orders/OrderComponent';
 import { CartProvider } from './providers/CartProvider';
+import { AuthProvider } from './providers/AuthProvider';
 import { MeComponent } from './components/me/MeComponent';
 import { Payment } from './components/payment/PaymentComponent';
 
@@ -17,9 +18,10 @@ function App() {
   return (
     <BrowserRouter>
       {/* Wrap everything in the global state bucket */}
-      <CartProvider>
-        <div className="App">
-          <TopNavbar />
+      <AuthProvider>
+        <CartProvider>
+          <div className="App">
+            <TopNavbar />
           <Routes>
             <Route path='/' element={<Catalog/>}/>
             <Route path='/book/:id' element={<CatalogItemDetails/>}/>
@@ -30,7 +32,8 @@ function App() {
             <Route path='/*' element={<NotFound/>}/>
           </Routes>
         </div>
-      </CartProvider>
+        </CartProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
